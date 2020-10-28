@@ -1,3 +1,5 @@
+[![crates.io](https://img.shields.io/crates/v/poisson-diskus.svg)](https://crates.io/crates/poisson-diskus)
+
 Rust library for sampling a Poisson disk distribution in multiple dimensions.
 
 The Poisson disk distribution produces samples of which no two samples are too close 
@@ -9,6 +11,15 @@ with the number of produced samples. For two-dimensional sampling, the sampling 
 increases with the area and for three-dimensional sampling with the volume.
 
 # Examples
+
+## Set-up
+Add the library as a dependency to your project in `Cargo.toml`:
+```
+[dependencies]
+#
+poisson-diskus = "1.0.0-pre.1"
+```
+
 ## Three dimensions
 ```rust
 use poisson_diskus::bridson;

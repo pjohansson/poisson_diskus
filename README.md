@@ -1,4 +1,4 @@
-[![crates.io](https://img.shields.io/crates/v/poisson-diskus.svg)](https://crates.io/crates/poisson-diskus)
+[![crates.io](https://img.shields.io/crates/v/poisson-diskus.svg)](https://crates.io/crates/poisson-diskus) [![Documentation](https://docs.rs/poisson-diskus/badge.svg)](https://docs.rs/poisson-diskus)
 
 Rust library for sampling a Poisson disk distribution in multiple dimensions.
 
@@ -12,12 +12,14 @@ increases with the area and for three-dimensional sampling with the volume.
 
 # Examples
 
+See the [documentation](https://docs.rs/poisson-diskus/) for more information about the library.
+
 ## Set-up
 Add the library as a dependency to your project in `Cargo.toml`:
 ```
 [dependencies]
 #
-poisson-diskus = "1.0.0-pre.1"
+poisson-diskus = "1.0.0-pre.2"
 ```
 
 ## Three dimensions

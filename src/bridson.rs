@@ -18,7 +18,7 @@ type Coord = Vec<f64>;
 /// Bridson, but this can be increased to produce tighter samples).
 ///
 /// This function uses `rand::thread_rng()` as a random number generator. To use another generator,
-/// use the `poisson_rng` function.
+/// use the [`bridson_rng`] function.
 pub fn bridson(box_size: &[f64], rmin: f64, num_attempts: usize) -> Result<Vec<Coord>, Error> {
     let mut rng = rand::thread_rng();
 
@@ -27,7 +27,7 @@ pub fn bridson(box_size: &[f64], rmin: f64, num_attempts: usize) -> Result<Vec<C
 
 /// Generate samples from a Poisson disc distribution using a specific random number generator.
 ///
-/// See `poisson` for more information.
+/// See [`bridson`] for more information.
 pub fn bridson_rng<R: Rng>(
     box_size: &[f64],
     rmin: f64,

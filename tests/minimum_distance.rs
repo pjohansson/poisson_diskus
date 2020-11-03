@@ -11,7 +11,7 @@ fn calc_distance(x0: &[f64], x1: &[f64]) -> f64 {
         .sqrt()
 }
 
-fn check_coords<const DIM: usize>(coords: &[[f64; DIM]], rmin: f64) {
+fn check_coords<const D: usize>(coords: &[[f64; D]], rmin: f64) {
     eprintln!("num_coords: {}", coords.len());
     assert!(coords.len() > 2);
 

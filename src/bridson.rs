@@ -12,8 +12,8 @@ use crate::{
 
 /// Generate samples from a Poisson disc distribution within the given box.
 ///
-/// The `box_size` array may have any non-zero length. Samples are generated for the given number
-/// of dimensions and are separated from each other by a minimum distance `rmin`. A set number of
+/// The `box_size` array may have any non-zero dimension `D`. Samples are generated with this
+/// dimension and are separated from each other by a minimum distance `rmin`. A set number of
 /// attempts `num_attempts` is made for each sample candidate (30 is suggested as a good value by
 /// Bridson, but this can be increased to produce tighter samples).
 ///
@@ -23,12 +23,12 @@ use crate::{
 /// # Periodic boundary conditions
 /// If `use_pbc` is set to `true` the algorithm will look for neighbours across the periodic borders
 /// of the grid. This is slightly slower: about 25% to 35%, for the same number of generated points.
-pub fn bridson<const DIM: usize>(
-    box_size: &Coord<DIM>,
+pub fn bridson<const D: usize>(
+    box_size: &Coord<D>,
     rmin: f64,
     num_attempts: usize,
     use_pbc: bool,
-) -> Result<Vec<Coord<DIM>>, Error<DIM>> {
+) -> Result<Vec<Coord<D>>, Error<D>> {
     let mut rng = rand::thread_rng();
 
     bridson_rng(box_size, rmin, num_attempts, use_pbc, &mut rng)
@@ -37,13 +37,13 @@ pub fn bridson<const DIM: usize>(
 /// Generate samples from a Poisson disc distribution using a specific random number generator.
 ///
 /// See [`bridson`] for more information.
-pub fn bridson_rng<R: Rng, const DIM: usize>(
-    box_size: &Coord<DIM>,
+pub fn bridson_rng<R: Rng, const D: usize>(
+    box_size: &Coord<D>,
     rmin: f64,
     num_attempts: usize,
     use_pbc: bool,
     rng: &mut R,
-) -> Result<Vec<Coord<DIM>>, Error<DIM>> {
+) -> Result<Vec<Coord<D>>, Error<D>> {
     // Validate input numbers as positive and bounded
     validate_rmin(rmin)?;
     validate_box_size(box_size)?;
@@ -63,7 +63,7 @@ pub fn bridson_rng<R: Rng, const DIM: usize>(
         .ok_or(Error::GenCoordOutOfBounds(x0.clone()))?;
 
     let mut active_inds = HashSet::new();
-    let mut samples: Vec<Coord<DIM>> = Vec::with_capacity(grid.data.len());
+    let mut samples: Vec<Coord<D>> = Vec::with_capacity(grid.data.len());
 
     add_sample_to_list_and_grid(x0, grid_index, &mut samples, &mut active_inds, &mut grid);
 
@@ -103,10 +103,10 @@ pub fn bridson_rng<R: Rng, const DIM: usize>(
     Ok(samples)
 }
 
-fn add_sample_to_list_and_grid<const DIM: usize>(
-    coord: Coord<DIM>,
+fn add_sample_to_list_and_grid<const D: usize>(
+    coord: Coord<D>,
     grid_index: usize,
-    samples: &mut Vec<Coord<DIM>>,
+    samples: &mut Vec<Coord<D>>,
     active_inds: &mut HashSet<usize>,
     grid: &mut Grid,
 ) {
@@ -118,11 +118,11 @@ fn add_sample_to_list_and_grid<const DIM: usize>(
 }
 
 /// Get the coordinate sample if it exists in the grid.
-fn get_sample_from_grid<'a, const DIM: usize>(
+fn get_sample_from_grid<'a, const D: usize>(
     grid_index: usize,
-    samples: &'a [Coord<DIM>],
+    samples: &'a [Coord<D>],
     grid: &Grid,
-) -> Option<&'a Coord<DIM>> {
+) -> Option<&'a Coord<D>> {
     grid.data
         .get(grid_index)
         .cloned()
@@ -130,16 +130,16 @@ fn get_sample_from_grid<'a, const DIM: usize>(
         .and_then(|sample_index| samples.get(sample_index))
 }
 
-fn get_sample_around<R: Rng, const DIM: usize>(
-    x0: &Coord<DIM>,
-    samples: &[Coord<DIM>],
+fn get_sample_around<R: Rng, const D: usize>(
+    x0: &Coord<D>,
+    samples: &[Coord<D>],
     grid: &Grid,
     num_attempts: usize,
     rmin: f64,
     use_pbc: bool,
-    sphere_gen: &mut NBallGen<DIM>,
+    sphere_gen: &mut NBallGen<D>,
     rng: &mut R,
-) -> Option<Coord<DIM>> {
+) -> Option<Coord<D>> {
     for _ in 0..num_attempts {
         let x1 = sphere_gen.gen_around(x0, rng);
 
@@ -151,9 +151,9 @@ fn get_sample_around<R: Rng, const DIM: usize>(
     None
 }
 
-fn check_if_coord_is_valid<const DIM: usize>(
-    coord: &Coord<DIM>,
-    samples: &[Coord<DIM>],
+fn check_if_coord_is_valid<const D: usize>(
+    coord: &Coord<D>,
+    samples: &[Coord<D>],
     grid: &Grid,
     rmin: f64,
     use_pbc: bool,
@@ -188,11 +188,11 @@ fn check_if_coord_is_valid<const DIM: usize>(
 }
 
 /// Recurse through the position range of all dimensions and verify the grid position.
-fn recurse_and_check<const DIM: usize>(
+fn recurse_and_check<const D: usize>(
     position: &mut Vec<isize>,
     index_ranges: &[(isize, isize)],
-    coord: &Coord<DIM>,
-    samples: &[Coord<DIM>],
+    coord: &Coord<D>,
+    samples: &[Coord<D>],
     grid: &Grid,
     original_position: &[isize],
     rmin: f64,
@@ -240,10 +240,10 @@ fn recurse_and_check<const DIM: usize>(
 /// distance. Only if there is a sample and it is closer to the coordinate than
 /// the minimum distance is false returned, since we are excluding such points
 /// from the output.
-fn check_coord_at_position<const DIM: usize>(
-    coord: &Coord<DIM>,
+fn check_coord_at_position<const D: usize>(
+    coord: &Coord<D>,
     grid_position: &[isize],
-    samples: &[Coord<DIM>],
+    samples: &[Coord<D>],
     grid: &Grid,
     rmin: f64,
     use_pbc: bool,
@@ -287,7 +287,7 @@ fn validate_number(value: f64) -> bool {
     value > 0.0 && value.is_finite()
 }
 
-fn validate_rmin<const DIM: usize>(rmin: f64) -> Result<(), Error<DIM>> {
+fn validate_rmin<const D: usize>(rmin: f64) -> Result<(), Error<D>> {
     if validate_number(rmin) {
         Ok(())
     } else {
@@ -295,7 +295,7 @@ fn validate_rmin<const DIM: usize>(rmin: f64) -> Result<(), Error<DIM>> {
     }
 }
 
-fn validate_box_size<const DIM: usize>(box_size: &Coord<DIM>) -> Result<(), Error<DIM>> {
+fn validate_box_size<const D: usize>(box_size: &Coord<D>) -> Result<(), Error<D>> {
     for &value in box_size {
         if !validate_number(value) {
             return Err(Error::InvalidBoxSize {
@@ -312,14 +312,14 @@ fn validate_box_size<const DIM: usize>(box_size: &Coord<DIM>) -> Result<(), Erro
 mod tests {
     use super::*;
 
-    fn add_sample_at_grid_position<const DIM: usize>(
+    fn add_sample_at_grid_position<const D: usize>(
         position: &[isize],
-        samples: &mut Vec<Coord<DIM>>,
+        samples: &mut Vec<Coord<D>>,
         grid: &mut Grid,
     ) {
         use std::convert::TryInto;
 
-        let coord: Coord<DIM> = position
+        let coord: Coord<D> = position
             .iter()
             .zip(grid.spacing.iter())
             .map(|(&i, dx)| (i as f64 + 0.5) * dx)

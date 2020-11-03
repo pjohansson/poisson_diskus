@@ -8,12 +8,12 @@ use std::collections::HashSet;
 
 use crate::coord::{add_coords, Coord};
 
-/// Generator of points inside the annulus of an n-ball.
-pub struct NBallGen<const DIM: usize> {
+/// Generator of points inside the annulus of an n-ball of dimension `D`.
+pub struct NBallGen<const D: usize> {
     distance: Uniform<f64>,
 }
 
-impl<const DIM: usize> NBallGen<DIM> {
+impl<const D: usize> NBallGen<D> {
     /// Create a generator which samples in the annulus between [rmin, 2.0 * rmin).
     pub fn new(rmin: f64) -> Self {
         NBallGen {
@@ -22,10 +22,10 @@ impl<const DIM: usize> NBallGen<DIM> {
     }
 
     /// Sample a point in the annulus.
-    fn sample<R: Rng>(&mut self, rng: &mut R) -> Coord<DIM> {
+    fn sample<R: Rng>(&mut self, rng: &mut R) -> Coord<D> {
         let at_distance = self.distance.sample(rng);
 
-        let mut coords: [f64; DIM] = sample_const_num_values(&StandardNormal, rng);
+        let mut coords: [f64; D] = sample_const_num_values(&StandardNormal, rng);
 
         let current_distance = coords.iter().map(|v| v.powi(2)).sum::<f64>().sqrt();
 
@@ -37,7 +37,7 @@ impl<const DIM: usize> NBallGen<DIM> {
     }
 
     /// Generate a coordinate in the annulus around a given point.
-    pub fn gen_around<R: Rng>(&mut self, x0: &Coord<DIM>, rng: &mut R) -> Coord<DIM> {
+    pub fn gen_around<R: Rng>(&mut self, x0: &Coord<D>, rng: &mut R) -> Coord<D> {
         add_coords(x0, &self.sample(rng))
     }
 }
@@ -48,8 +48,8 @@ pub fn get_active_index<R: Rng>(inds: &HashSet<usize>, rng: &mut R) -> Option<us
 }
 
 /// Generate a random point inside the box as an initial value for the Bridson algorithm.
-pub fn gen_init_coord<R: Rng, const DIM: usize>(box_size: &Coord<DIM>, rng: &mut R) -> Coord<DIM> {
-    let mut xinit = [0.0; DIM];
+pub fn gen_init_coord<R: Rng, const D: usize>(box_size: &Coord<D>, rng: &mut R) -> Coord<D> {
+    let mut xinit = [0.0; D];
 
     xinit
         .iter_mut()

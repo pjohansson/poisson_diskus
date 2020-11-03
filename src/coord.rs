@@ -1,10 +1,10 @@
 use crate::grid::PbcInfo;
 
-pub type Coord<const DIM: usize> = [f64; DIM];
+pub type Coord<const D: usize> = [f64; D];
 
 /// Add two points of identical dimension.
-pub fn add_coords<const DIM: usize>(x0: &Coord<DIM>, x1: &Coord<DIM>) -> Coord<DIM> {
-    let mut buf: Coord<DIM> = x0.clone();
+pub fn add_coords<const D: usize>(x0: &Coord<D>, x1: &Coord<D>) -> Coord<D> {
+    let mut buf: Coord<D> = x0.clone();
 
     buf.iter_mut().zip(x1.iter()).for_each(|(a, b)| *a += b);
 
@@ -12,7 +12,7 @@ pub fn add_coords<const DIM: usize>(x0: &Coord<DIM>, x1: &Coord<DIM>) -> Coord<D
 }
 
 /// Calculate the Euclidian distance between two points of identical dimension.
-pub fn calc_distance<const DIM: usize>(x0: &Coord<DIM>, x1: &Coord<DIM>) -> f64 {
+pub fn calc_distance<const D: usize>(x0: &Coord<D>, x1: &Coord<D>) -> f64 {
     x0.iter()
         .zip(x1.iter())
         .map(|(a, b)| (a - b).powi(2))

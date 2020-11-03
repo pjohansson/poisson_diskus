@@ -2,7 +2,7 @@ use std::fmt;
 
 #[derive(Clone, Debug)]
 /// Errors encountered when sampling coordinates.
-pub enum Error<const DIM: usize> {
+pub enum Error<const D: usize> {
     /// Invalid input box size to sample coordinates in.
     ///
     /// All box size lengths must be positive, real values.
@@ -15,7 +15,7 @@ pub enum Error<const DIM: usize> {
     /// Generated a coordinate that was outside the box.
     ///
     /// This should not happen. Please file an issue if you encounter this.
-    GenCoordOutOfBounds([f64; DIM]),
+    GenCoordOutOfBounds([f64; D]),
     /// The active list is inconsistent.
     ///
     /// This should not happen. Please file an issue if you encounter this.
@@ -27,7 +27,7 @@ pub enum Error<const DIM: usize> {
     UnmatchedDims,
 }
 
-impl<const DIM: usize> fmt::Display for Error<DIM> {
+impl<const D: usize> fmt::Display for Error<D> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Error::InvalidBoxSize { value, box_size } => write!(
@@ -57,10 +57,10 @@ impl<const DIM: usize> fmt::Display for Error<DIM> {
     }
 }
 
-impl<const DIM: usize> std::error::Error for Error<DIM> {}
+impl<const D: usize> std::error::Error for Error<D> {}
 
 #[cfg(test)]
-impl<const DIM: usize> Error<DIM> {
+impl<const D: usize> Error<D> {
     pub(crate) fn is_invalid_box_size(&self) -> bool {
         match self {
             Error::InvalidBoxSize { .. } => true,

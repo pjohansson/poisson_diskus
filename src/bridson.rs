@@ -13,8 +13,8 @@ type Coord = Vec<f64>;
 /// Generate samples from a Poisson disc distribution within the given box.
 ///
 /// The `box_size` array may have any non-zero length. Samples are generated for the given number
-/// of dimensions and are separated from each other by a minimum distance `rmin`. A set number of 
-/// attempts `num_attempts` is made for each sample candidate (30 is suggested as a good value by 
+/// of dimensions and are separated from each other by a minimum distance `rmin`. A set number of
+/// attempts `num_attempts` is made for each sample candidate (30 is suggested as a good value by
 /// Bridson, but this can be increased to produce tighter samples).
 ///
 /// This function uses `rand::thread_rng()` as a random number generator. To use another generator,

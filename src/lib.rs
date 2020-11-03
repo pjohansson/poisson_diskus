@@ -30,7 +30,8 @@
 //! let num_attempts = 30;
 //! let use_pbc = true;
 //!
-//! let coords = bridson(&box_size, rmin, num_attempts, use_pbc).unwrap();
+//! // Output sample dimension is same as input box size
+//! let coords: Vec<[f64; 3]> = bridson(&box_size, rmin, num_attempts, use_pbc).unwrap();
 //!
 //! for coord in coords {
 //!     assert_eq!(coord.len(), box_size.len());

@@ -60,29 +60,17 @@ pub fn gen_init_coord<R: Rng, const DIM: usize>(box_size: &Coord<DIM>, rng: &mut
 }
 
 /// Sample N values from a distribution and return as an array.
-///
-/// # Panics
-/// This will panic if the random number generator encounters an error and cannot produce
-/// enough values to fill the array.
-fn sample_const_num_values<T: Copy, D: Distribution<T>, R: Rng, const N: usize>(
+fn sample_const_num_values<T: Copy + Default, D: Distribution<T>, R: Rng, const N: usize>(
     distr: &D,
     rng: &mut R,
 ) -> [T; N] {
-    use std::convert::TryInto;
+    let mut coord = [T::default(); N];
 
-    // This cast will only fail if the distribution or random nunber generator
-    // could not produce N values, which should not be possible. Thus we unwrap
-    // from a slice conversion.
-    //
-    // TODO: Check if this is slower than preallocating the sample array
-    // and copying values into it, rather than going through a Vec
-    distr
-        .sample_iter(rng)
-        .take(N)
-        .collect::<Vec<T>>()
-        .as_slice()
-        .try_into()
-        .unwrap()
+    for (c, v) in coord.iter_mut().zip(distr.sample_iter(rng)) {
+        *c = v;
+    }
+
+    coord
 }
 
 #[cfg(test)]

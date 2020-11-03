@@ -14,7 +14,7 @@ fn main() {
     );
 
     for coord in coords {
-        for v in coord {
+        for v in coord.iter() {
             print!("{} ", v);
         }
 

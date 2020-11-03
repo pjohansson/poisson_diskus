@@ -1,10 +1,18 @@
 use crate::grid::PbcInfo;
 
-pub fn add_coords(x0: &[f64], x1: &[f64]) -> Vec<f64> {
-    x0.iter().zip(x1.iter()).map(|(a, b)| a + b).collect()
+pub type Coord<const DIM: usize> = [f64; DIM];
+
+/// Add two points of identical dimension.
+pub fn add_coords<const DIM: usize>(x0: &Coord<DIM>, x1: &Coord<DIM>) -> Coord<DIM> {
+    let mut buf: Coord<DIM> = x0.clone();
+
+    buf.iter_mut().zip(x1.iter()).for_each(|(a, b)| *a += b);
+
+    buf
 }
 
-pub fn calc_distance(x0: &[f64], x1: &[f64]) -> f64 {
+/// Calculate the Euclidian distance between two points of identical dimension.
+pub fn calc_distance<const DIM: usize>(x0: &Coord<DIM>, x1: &Coord<DIM>) -> f64 {
     x0.iter()
         .zip(x1.iter())
         .map(|(a, b)| (a - b).powi(2))
@@ -31,12 +39,33 @@ mod tests {
     use super::*;
 
     #[test]
-    fn add_coords_works_as_expected() {
+    fn add_coords_works_as_expected_0_dims() {
+        assert_eq!(&add_coords(&[], &[]), &[]);
+    }
+
+    #[test]
+    fn add_coords_works_as_expected_2_dims() {
         assert_eq!(&add_coords(&[3.0, 5.0], &[7.0, 11.0]), &[10.0, 16.0]);
     }
 
     #[test]
-    fn calc_distance_works_as_expected() {
+    fn add_coords_works_as_expected_6_dims() {
+        assert_eq!(
+            &add_coords(
+                &[0.0, 1.0, 2.0, 3.0, 4.0, 5.0],
+                &[6.0, 7.0, 8.0, 9.0, 10.0, 11.0]
+            ),
+            &[6.0, 8.0, 10.0, 12.0, 14.0, 16.0]
+        );
+    }
+
+    #[test]
+    fn calc_distance_works_as_expected_0_dims() {
+        assert_eq!(calc_distance(&[], &[]), 0.0);
+    }
+
+    #[test]
+    fn calc_distance_works_as_expected_2_dims() {
         let x0 = [1.0, 2.0];
         let x1 = [2.0, 3.0];
 
@@ -73,5 +102,13 @@ mod tests {
             calc_distance_pbc(&[x0 - 5.0 * dx, y0 - 3.0 * dy], &[2.0, 3.0], &pbc),
             2.0_f64.sqrt()
         );
+    }
+
+    #[test]
+    fn calc_distance_works_as_expected_6_dims() {
+        let x0 = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0];
+        let x1 = [2.0, 3.0, 4.0, 5.0, 6.0, 7.0];
+
+        assert_eq!(calc_distance(&x0, &x1), 6.0_f64.sqrt());
     }
 }

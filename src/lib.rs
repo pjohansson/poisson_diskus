@@ -40,6 +40,7 @@
 //! # Citations
 //! \[1\] Bridson, R. (2007). Fast Poisson disk sampling in arbitrary dimensions. SIGGRAPH sketches, 10, 1.
 //!
+
 mod bridson;
 mod coord;
 mod error;

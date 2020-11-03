@@ -2,7 +2,7 @@ use std::fmt;
 
 #[derive(Clone, Debug)]
 /// Errors encountered when sampling coordinates.
-pub enum Error {
+pub enum Error<const DIM: usize> {
     /// Invalid input box size to sample coordinates in.
     ///
     /// All box size lengths must be positive, real values.
@@ -15,7 +15,7 @@ pub enum Error {
     /// Generated a coordinate that was outside the box.
     ///
     /// This should not happen. Please file an issue if you encounter this.
-    GenCoordOutOfBounds(Vec<f64>),
+    GenCoordOutOfBounds([f64; DIM]),
     /// The active list is inconsistent.
     ///
     /// This should not happen. Please file an issue if you encounter this.
@@ -27,7 +27,7 @@ pub enum Error {
     UnmatchedDims,
 }
 
-impl fmt::Display for Error {
+impl<const DIM: usize> fmt::Display for Error<DIM> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Error::InvalidBoxSize { value, box_size } => write!(
@@ -57,10 +57,10 @@ impl fmt::Display for Error {
     }
 }
 
-impl std::error::Error for Error {}
+impl<const DIM: usize> std::error::Error for Error<DIM> {}
 
 #[cfg(test)]
-impl Error {
+impl<const DIM: usize> Error<DIM> {
     pub(crate) fn is_invalid_box_size(&self) -> bool {
         match self {
             Error::InvalidBoxSize { .. } => true,

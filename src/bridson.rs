@@ -2,13 +2,13 @@ use rand::Rng;
 use std::collections::HashSet;
 
 use crate::{
-    coord::{calc_distance, calc_distance_pbc},
+    coord::{calc_distance, calc_distance_pbc, Coord},
     error::Error,
     grid::Grid,
     sample::{gen_init_coord, get_active_index, NBallGen},
 };
 
-type Coord = Vec<f64>;
+// type Coord = Vec<f64>;
 
 /// Generate samples from a Poisson disc distribution within the given box.
 ///
@@ -23,12 +23,12 @@ type Coord = Vec<f64>;
 /// # Periodic boundary conditions
 /// If `use_pbc` is set to `true` the algorithm will look for neighbours across the periodic borders
 /// of the grid. This is slightly slower: about 25% to 35%, for the same number of generated points.
-pub fn bridson(
-    box_size: &[f64],
+pub fn bridson<const DIM: usize>(
+    box_size: &Coord<DIM>,
     rmin: f64,
     num_attempts: usize,
     use_pbc: bool,
-) -> Result<Vec<Coord>, Error> {
+) -> Result<Vec<Coord<DIM>>, Error<DIM>> {
     let mut rng = rand::thread_rng();
 
     bridson_rng(box_size, rmin, num_attempts, use_pbc, &mut rng)
@@ -37,13 +37,13 @@ pub fn bridson(
 /// Generate samples from a Poisson disc distribution using a specific random number generator.
 ///
 /// See [`bridson`] for more information.
-pub fn bridson_rng<R: Rng>(
-    box_size: &[f64],
+pub fn bridson_rng<R: Rng, const DIM: usize>(
+    box_size: &Coord<DIM>,
     rmin: f64,
     num_attempts: usize,
     use_pbc: bool,
     rng: &mut R,
-) -> Result<Vec<Coord>, Error> {
+) -> Result<Vec<Coord<DIM>>, Error<DIM>> {
     // Validate input numbers as positive and bounded
     validate_rmin(rmin)?;
     validate_box_size(box_size)?;
@@ -55,7 +55,7 @@ pub fn bridson_rng<R: Rng>(
     let shape = get_grid_shape(rmin, box_size);
     let mut grid = Grid::new(&shape, box_size).map_err(|_| Error::UnmatchedDims)?;
 
-    let mut sphere_gen = NBallGen::new(rmin, box_size.len());
+    let mut sphere_gen = NBallGen::new(rmin);
 
     let x0 = gen_init_coord(box_size, rng);
     let grid_index = grid
@@ -63,7 +63,7 @@ pub fn bridson_rng<R: Rng>(
         .ok_or(Error::GenCoordOutOfBounds(x0.clone()))?;
 
     let mut active_inds = HashSet::new();
-    let mut samples = Vec::new();
+    let mut samples: Vec<Coord<DIM>> = Vec::with_capacity(grid.data.len());
 
     add_sample_to_list_and_grid(x0, grid_index, &mut samples, &mut active_inds, &mut grid);
 
@@ -103,10 +103,10 @@ pub fn bridson_rng<R: Rng>(
     Ok(samples)
 }
 
-fn add_sample_to_list_and_grid(
-    coord: Coord,
+fn add_sample_to_list_and_grid<const DIM: usize>(
+    coord: Coord<DIM>,
     grid_index: usize,
-    samples: &mut Vec<Vec<f64>>,
+    samples: &mut Vec<Coord<DIM>>,
     active_inds: &mut HashSet<usize>,
     grid: &mut Grid,
 ) {
@@ -118,11 +118,11 @@ fn add_sample_to_list_and_grid(
 }
 
 /// Get the coordinate sample if it exists in the grid.
-fn get_sample_from_grid<'a>(
+fn get_sample_from_grid<'a, const DIM: usize>(
     grid_index: usize,
-    samples: &'a [Coord],
+    samples: &'a [Coord<DIM>],
     grid: &Grid,
-) -> Option<&'a Coord> {
+) -> Option<&'a Coord<DIM>> {
     grid.data
         .get(grid_index)
         .cloned()
@@ -130,16 +130,16 @@ fn get_sample_from_grid<'a>(
         .and_then(|sample_index| samples.get(sample_index))
 }
 
-fn get_sample_around<R: Rng>(
-    x0: &Coord,
-    samples: &[Coord],
+fn get_sample_around<R: Rng, const DIM: usize>(
+    x0: &Coord<DIM>,
+    samples: &[Coord<DIM>],
     grid: &Grid,
     num_attempts: usize,
     rmin: f64,
     use_pbc: bool,
-    sphere_gen: &mut NBallGen,
+    sphere_gen: &mut NBallGen<DIM>,
     rng: &mut R,
-) -> Option<Coord> {
+) -> Option<Coord<DIM>> {
     for _ in 0..num_attempts {
         let x1 = sphere_gen.gen_around(x0, rng);
 
@@ -151,9 +151,9 @@ fn get_sample_around<R: Rng>(
     None
 }
 
-fn check_if_coord_is_valid(
-    coord: &Coord,
-    samples: &[Coord],
+fn check_if_coord_is_valid<const DIM: usize>(
+    coord: &Coord<DIM>,
+    samples: &[Coord<DIM>],
     grid: &Grid,
     rmin: f64,
     use_pbc: bool,
@@ -188,11 +188,11 @@ fn check_if_coord_is_valid(
 }
 
 /// Recurse through the position range of all dimensions and verify the grid position.
-fn recurse_and_check(
+fn recurse_and_check<const DIM: usize>(
     position: &mut Vec<isize>,
     index_ranges: &[(isize, isize)],
-    coord: &Coord,
-    samples: &[Coord],
+    coord: &Coord<DIM>,
+    samples: &[Coord<DIM>],
     grid: &Grid,
     original_position: &[isize],
     rmin: f64,
@@ -240,10 +240,10 @@ fn recurse_and_check(
 /// distance. Only if there is a sample and it is closer to the coordinate than
 /// the minimum distance is false returned, since we are excluding such points
 /// from the output.
-fn check_coord_at_position(
-    coord: &Coord,
+fn check_coord_at_position<const DIM: usize>(
+    coord: &Coord<DIM>,
     grid_position: &[isize],
-    samples: &[Coord],
+    samples: &[Coord<DIM>],
     grid: &Grid,
     rmin: f64,
     use_pbc: bool,
@@ -287,7 +287,7 @@ fn validate_number(value: f64) -> bool {
     value > 0.0 && value.is_finite()
 }
 
-fn validate_rmin(rmin: f64) -> Result<(), Error> {
+fn validate_rmin<const DIM: usize>(rmin: f64) -> Result<(), Error<DIM>> {
     if validate_number(rmin) {
         Ok(())
     } else {
@@ -295,7 +295,7 @@ fn validate_rmin(rmin: f64) -> Result<(), Error> {
     }
 }
 
-fn validate_box_size(box_size: &[f64]) -> Result<(), Error> {
+fn validate_box_size<const DIM: usize>(box_size: &Coord<DIM>) -> Result<(), Error<DIM>> {
     for &value in box_size {
         if !validate_number(value) {
             return Err(Error::InvalidBoxSize {
@@ -312,12 +312,21 @@ fn validate_box_size(box_size: &[f64]) -> Result<(), Error> {
 mod tests {
     use super::*;
 
-    fn add_sample_at_grid_position(position: &[isize], samples: &mut Vec<Coord>, grid: &mut Grid) {
-        let coord = position
+    fn add_sample_at_grid_position<const DIM: usize>(
+        position: &[isize],
+        samples: &mut Vec<Coord<DIM>>,
+        grid: &mut Grid,
+    ) {
+        use std::convert::TryInto;
+
+        let coord: Coord<DIM> = position
             .iter()
             .zip(grid.spacing.iter())
             .map(|(&i, dx)| (i as f64 + 0.5) * dx)
-            .collect();
+            .collect::<Vec<_>>()
+            .as_slice()
+            .try_into()
+            .unwrap();
 
         let grid_index = grid.get_index(position, true).unwrap();
         let mut buf = HashSet::new();
@@ -330,7 +339,7 @@ mod tests {
         let shape = [4, 4];
         let size = [8.0, 8.0];
 
-        let coord = vec![3.0, 3.0]; // bin: [1, 1]
+        let coord = [3.0, 3.0]; // bin: [1, 1]
         let rmin = 2.0 * 2.0_f64.sqrt();
 
         let grid = Grid::new(&shape, &size).unwrap();
@@ -343,7 +352,7 @@ mod tests {
         let shape = [4, 4];
         let size = [8.0, 8.0];
 
-        let coord = vec![3.0, 3.0]; // bin: [1, 1]
+        let coord = [3.0, 3.0]; // bin: [1, 1]
         let rmin = 2.0 * 2.0_f64.sqrt();
 
         let mut grid = Grid::new(&shape, &size).unwrap();
@@ -360,7 +369,7 @@ mod tests {
         let shape = [4, 4];
         let size = [8.0, 8.0];
 
-        let coord = vec![1.0, 1.0]; // bin: [0, 0]
+        let coord = [1.0, 1.0]; // bin: [0, 0]
         let rmin = 2.0 * 2.0_f64.sqrt();
 
         let mut grid = Grid::new(&shape, &size).unwrap();
@@ -372,7 +381,7 @@ mod tests {
         grid.num_adjacent = 3;
 
         // Set the coordinate close enough to the candidate (cheating!)
-        samples[0] = vec![1.0, 2.0];
+        samples[0] = [1.0, 2.0];
 
         assert!(!check_if_coord_is_valid(
             &coord, &samples, &grid, rmin, true
@@ -384,7 +393,7 @@ mod tests {
         let shape = [4, 4];
         let size = [8.0, 8.0];
 
-        let coord = vec![3.0, 3.0]; // bin: [1, 1]
+        let coord = [3.0, 3.0]; // bin: [1, 1]
         let rmin = 2.0 * 2.0_f64.sqrt();
 
         let mut grid = Grid::new(&shape, &size).unwrap();
@@ -402,14 +411,14 @@ mod tests {
         let shape = [4, 4];
         let size = [8.0, 8.0];
 
-        let coord = vec![2.01, 2.01]; // bin: [1, 1]
+        let coord = [2.01, 2.01]; // bin: [1, 1]
         let rmin = 2.0 * 2.0_f64.sqrt();
 
         let mut grid = Grid::new(&shape, &size).unwrap();
         let mut samples = Vec::new();
 
         add_sample_at_grid_position(&[2, 1], &mut samples, &mut grid);
-        samples[0] = vec![5.99, 3.99]; // bin: 2, 1
+        samples[0] = [5.99, 3.99]; // bin: 2, 1
 
         assert!(check_if_coord_is_valid(&coord, &samples, &grid, rmin, true))
     }
@@ -419,7 +428,7 @@ mod tests {
         let shape = [4, 4];
         let size = [8.0, 8.0];
 
-        let coord = vec![3.0, 0.0]; // bin: [1, 0]
+        let coord = [3.0, 0.0]; // bin: [1, 0]
         let rmin = 2.0 * 2.0_f64.sqrt();
 
         let mut grid = Grid::new(&shape, &size).unwrap();
@@ -427,10 +436,10 @@ mod tests {
 
         add_sample_at_grid_position(&[1, 3], &mut samples, &mut grid);
 
-        samples[0] = vec![3.0, 4.0]; // bin: 1, 3, but out of range
+        samples[0] = [3.0, 4.0]; // bin: 1, 3, but out of range
         assert!(check_if_coord_is_valid(&coord, &samples, &grid, rmin, true));
 
-        samples[0] = vec![3.0, 8.0]; // bin: 1, 3, in range
+        samples[0] = [3.0, 8.0]; // bin: 1, 3, in range
         assert!(!check_if_coord_is_valid(
             &coord, &samples, &grid, rmin, true
         ));

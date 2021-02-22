@@ -80,24 +80,34 @@ impl Grid {
     /// Return the 1d data index of the bin with the input position.
     ///
     /// Returns `None` if no valid bin is available.
-    pub fn get_index(&self, position: &[isize]) -> Option<usize> {
-        // if position
-        //     .iter()
-        //     .zip(self.shape.iter())
-        //     .any(|(&p, &s)| p as usize >= s)
-        // {
-        //     return None;
-        // }
-
-        Some(
-            position
+    pub fn get_index(&self, position: &[isize], use_pbc: bool) -> Option<usize> {
+        if use_pbc {
+            Some(
+                position
+                    .iter()
+                    .zip(self.shape.iter())
+                    .map(|(&i, &n)| i.rem_euclid(n as isize))
+                    .zip(self.dim_multipliers.iter())
+                    .map(|(p, m)| p as usize * m)
+                    .sum(),
+            )
+        } else {
+            if position
                 .iter()
                 .zip(self.shape.iter())
-                .map(|(&i, &n)| i.rem_euclid(n as isize))
-                .zip(self.dim_multipliers.iter())
-                .map(|(p, m)| p as usize * m)
-                .sum(),
-        )
+                .any(|(&p, &s)| p < 0 || p >= s as isize)
+            {
+                None
+            } else {
+                Some(
+                    position
+                        .iter()
+                        .zip(self.dim_multipliers.iter())
+                        .map(|(&p, m)| p as usize * m)
+                        .sum(),
+                )
+            }
+        }
     }
 
     pub fn get_position(&self, index: usize) -> Option<Vec<isize>> {
@@ -130,9 +140,9 @@ impl Grid {
     }
 
     /// Return the 1d data index of a coordinate on the grid.
-    pub fn get_index_from_coord(&self, coord: &[f64]) -> Option<usize> {
+    pub fn get_index_from_coord(&self, coord: &[f64], use_pbc: bool) -> Option<usize> {
         self.get_position_from_coord(coord)
-            .and_then(|position| self.get_index(&position))
+            .and_then(|position| self.get_index(&position, use_pbc))
     }
 }
 
@@ -221,52 +231,103 @@ mod tests {
         let shape = [3, 5, 7];
         let grid = Grid::with_shape(&shape);
 
-        assert_eq!(grid.get_index(&[0, 0, 0]).unwrap(), 0);
-        assert_eq!(grid.get_index(&[0, 0, 1]).unwrap(), 1);
-        assert_eq!(grid.get_index(&[0, 0, 6]).unwrap(), 6);
+        assert_eq!(grid.get_index(&[0, 0, 0], false).unwrap(), 0);
+        assert_eq!(grid.get_index(&[0, 0, 1], false).unwrap(), 1);
+        assert_eq!(grid.get_index(&[0, 0, 6], false).unwrap(), 6);
 
-        assert_eq!(grid.get_index(&[0, 1, 0]).unwrap(), 7);
-        assert_eq!(grid.get_index(&[0, 1, 1]).unwrap(), 8);
-        assert_eq!(grid.get_index(&[0, 1, 6]).unwrap(), 13);
-        assert_eq!(grid.get_index(&[0, 4, 6]).unwrap(), 34);
+        assert_eq!(grid.get_index(&[0, 1, 0], false).unwrap(), 7);
+        assert_eq!(grid.get_index(&[0, 1, 1], false).unwrap(), 8);
+        assert_eq!(grid.get_index(&[0, 1, 6], false).unwrap(), 13);
+        assert_eq!(grid.get_index(&[0, 4, 6], false).unwrap(), 34);
 
-        assert_eq!(grid.get_index(&[1, 0, 0]).unwrap(), 35);
-        assert_eq!(grid.get_index(&[2, 4, 6]).unwrap(), 3 * 5 * 7 - 1);
+        assert_eq!(grid.get_index(&[1, 0, 0], false).unwrap(), 35);
+        assert_eq!(grid.get_index(&[2, 4, 6], false).unwrap(), 3 * 5 * 7 - 1);
     }
 
     #[test]
-    fn indexing_out_of_shape_uses_pbc_to_get_bin() {
+    fn indexing_out_of_shape_uses_pbc_to_get_bin_if_use_pbc_is_set() {
         let shape = [3, 5];
         let grid = Grid::with_shape(&shape);
 
-        assert_eq!(grid.get_index(&[3, 0]), grid.get_index(&[0, 0]));
-        assert_eq!(grid.get_index(&[4, 0]), grid.get_index(&[1, 0]));
-        assert_eq!(grid.get_index(&[5, 0]), grid.get_index(&[2, 0]));
-        assert_eq!(grid.get_index(&[6, 0]), grid.get_index(&[0, 0]));
-        assert_eq!(grid.get_index(&[-1, 0]), grid.get_index(&[2, 0]));
-        assert_eq!(grid.get_index(&[-2, 0]), grid.get_index(&[1, 0]));
-        assert_eq!(grid.get_index(&[-3, 0]), grid.get_index(&[0, 0]));
-        assert_eq!(grid.get_index(&[-4, 0]), grid.get_index(&[2, 0]));
+        assert_eq!(
+            grid.get_index(&[3, 0], true),
+            grid.get_index(&[0, 0], false)
+        );
+        assert_eq!(
+            grid.get_index(&[4, 0], true),
+            grid.get_index(&[1, 0], false)
+        );
+        assert_eq!(
+            grid.get_index(&[5, 0], true),
+            grid.get_index(&[2, 0], false)
+        );
+        assert_eq!(
+            grid.get_index(&[6, 0], true),
+            grid.get_index(&[0, 0], false)
+        );
+        assert_eq!(
+            grid.get_index(&[-1, 0], true),
+            grid.get_index(&[2, 0], false)
+        );
+        assert_eq!(
+            grid.get_index(&[-2, 0], true),
+            grid.get_index(&[1, 0], false)
+        );
+        assert_eq!(
+            grid.get_index(&[-3, 0], true),
+            grid.get_index(&[0, 0], false)
+        );
+        assert_eq!(
+            grid.get_index(&[-4, 0], true),
+            grid.get_index(&[2, 0], false)
+        );
 
-        assert_eq!(grid.get_index(&[2, 5]), grid.get_index(&[2, 0]));
-        assert_eq!(grid.get_index(&[2, 6]), grid.get_index(&[2, 1]));
-        assert_eq!(grid.get_index(&[2, 9]), grid.get_index(&[2, 4]));
-        assert_eq!(grid.get_index(&[2, 10]), grid.get_index(&[2, 0]));
-        assert_eq!(grid.get_index(&[2, -1]), grid.get_index(&[2, 4]));
-        assert_eq!(grid.get_index(&[2, -2]), grid.get_index(&[2, 3]));
-        assert_eq!(grid.get_index(&[2, -5]), grid.get_index(&[2, 0]));
-        assert_eq!(grid.get_index(&[2, -6]), grid.get_index(&[2, 4]));
+        assert_eq!(
+            grid.get_index(&[2, 5], true),
+            grid.get_index(&[2, 0], false)
+        );
+        assert_eq!(
+            grid.get_index(&[2, 6], true),
+            grid.get_index(&[2, 1], false)
+        );
+        assert_eq!(
+            grid.get_index(&[2, 9], true),
+            grid.get_index(&[2, 4], false)
+        );
+        assert_eq!(
+            grid.get_index(&[2, 10], true),
+            grid.get_index(&[2, 0], false)
+        );
+        assert_eq!(
+            grid.get_index(&[2, -1], true),
+            grid.get_index(&[2, 4], false)
+        );
+        assert_eq!(
+            grid.get_index(&[2, -2], true),
+            grid.get_index(&[2, 3], false)
+        );
+        assert_eq!(
+            grid.get_index(&[2, -5], true),
+            grid.get_index(&[2, 0], false)
+        );
+        assert_eq!(
+            grid.get_index(&[2, -6], true),
+            grid.get_index(&[2, 4], false)
+        );
     }
 
-    // #[test]
-    // fn indexing_outside_of_shape_yields_none() {
-    //     let shape = [3, 5, 7];
-    //     let grid = Grid::with_shape(&shape);
+    #[test]
+    fn indexing_outside_of_shape_yields_none_if_use_pbc_not_set() {
+        let shape = [3, 5, 7];
+        let grid = Grid::with_shape(&shape);
 
-    //     assert!(grid.get_index(&[0, 0, 7]).is_none());
-    //     assert!(grid.get_index(&[0, 5, 0]).is_none());
-    //     assert!(grid.get_index(&[3, 0, 0]).is_none());
-    // }
+        assert!(grid.get_index(&[-1, 0, 0], false).is_none());
+        assert!(grid.get_index(&[0, -1, 0], false).is_none());
+        assert!(grid.get_index(&[0, 0, -1], false).is_none());
+        assert!(grid.get_index(&[0, 0, 7], false).is_none());
+        assert!(grid.get_index(&[0, 5, 0], false).is_none());
+        assert!(grid.get_index(&[3, 0, 0], false).is_none());
+    }
 
     #[test]
     fn position_to_index_is_consistent_with_index_to_position() {
@@ -286,7 +347,11 @@ mod tests {
             [1, 0, 0],
             [2, 4, 6],
         ] {
-            let index = grid.get_index(position).unwrap();
+            // Try with and without pbc
+            let index = grid.get_index(position, true).unwrap();
+            assert_eq!(grid.get_position(index).unwrap(), position);
+
+            let index = grid.get_index(position, false).unwrap();
             assert_eq!(grid.get_position(index).unwrap(), position);
         }
     }
@@ -353,11 +418,19 @@ mod tests {
             [7.5, 7.6],
         ] {
             let position = grid.get_position_from_coord(coord).unwrap();
-            assert_eq!(grid.get_index(&position), grid.get_index_from_coord(coord));
+            assert_eq!(
+                grid.get_index(&position, true),
+                grid.get_index_from_coord(coord, true)
+            );
+            assert_eq!(
+                grid.get_index(&position, false),
+                grid.get_index_from_coord(coord, false)
+            );
         }
 
         for coord in &[[-5.0, 0.0], [0.0, -5.0], [15.0, 0.0], [0.0, 15.0]] {
-            assert!(grid.get_index_from_coord(coord).is_none());
+            assert!(grid.get_index_from_coord(coord, true).is_none());
+            assert!(grid.get_index_from_coord(coord, false).is_none());
         }
     }
 

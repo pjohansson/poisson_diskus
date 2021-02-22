@@ -4,7 +4,7 @@ use std::time::Instant;
 fn main() {
     let start = Instant::now();
 
-    let coords = bridson(&[20.0, 10.0], 0.5, 30).unwrap();
+    let coords = bridson(&[20.0, 10.0], 0.5, 30, true).unwrap();
 
     let duration = start.elapsed();
     eprintln!(

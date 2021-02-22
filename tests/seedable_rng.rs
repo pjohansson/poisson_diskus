@@ -9,5 +9,5 @@ fn seedable_rng_can_be_used() {
     let rmin = 1.0;
     let num_attempts = 30;
 
-    assert!(bridson_rng(&box_size, rmin, num_attempts, &mut rng).is_ok());
+    assert!(bridson_rng(&box_size, rmin, num_attempts, true, &mut rng).is_ok());
 }

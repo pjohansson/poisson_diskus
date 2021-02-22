@@ -31,7 +31,7 @@ fn one_dimension() {
     let rmin = 1.0;
 
     for _ in 0..NUM_ROUNDS {
-        let coords = bridson(&[100.0], rmin, 30).unwrap();
+        let coords = bridson(&[100.0], rmin, 30, true).unwrap();
         check_coords(&coords, rmin);
     }
 }
@@ -41,7 +41,7 @@ fn two_dimensions() {
     let rmin = 1.0;
 
     for _ in 0..NUM_ROUNDS {
-        let coords = bridson(&[10.0, 10.0], rmin, 30).unwrap();
+        let coords = bridson(&[10.0, 10.0], rmin, 30, true).unwrap();
         check_coords(&coords, rmin);
     }
 }
@@ -51,7 +51,7 @@ fn two_dimensions_skewed() {
     let rmin = 1.0;
 
     for _ in 0..NUM_ROUNDS {
-        let coords = bridson(&[3.0, 37.0], rmin, 30).unwrap();
+        let coords = bridson(&[3.0, 37.0], rmin, 30, true).unwrap();
         check_coords(&coords, rmin);
     }
 }
@@ -61,7 +61,7 @@ fn three_dimensions() {
     let rmin = 1.0;
 
     for _ in 0..NUM_ROUNDS {
-        let coords = bridson(&[5.0, 5.0, 5.0], rmin, 30).unwrap();
+        let coords = bridson(&[5.0, 5.0, 5.0], rmin, 30, true).unwrap();
         check_coords(&coords, rmin);
     }
 }
@@ -71,7 +71,7 @@ fn three_dimensions_skewed() {
     let rmin = 1.0;
 
     for _ in 0..NUM_ROUNDS {
-        let coords = bridson(&[3.0, 11.0, 7.0], rmin, 30).unwrap();
+        let coords = bridson(&[3.0, 11.0, 7.0], rmin, 30, true).unwrap();
         check_coords(&coords, rmin);
     }
 }
@@ -81,7 +81,7 @@ fn four_dimensions() {
     let rmin = 1.0;
 
     for _ in 0..NUM_ROUNDS {
-        let coords = bridson(&[3.0, 3.0, 3.0, 3.0], rmin, 30).unwrap();
+        let coords = bridson(&[3.0, 3.0, 3.0, 3.0], rmin, 30, true).unwrap();
         check_coords(&coords, rmin);
     }
 }
@@ -91,7 +91,7 @@ fn five_dimensions() {
     let rmin = 1.0;
 
     for _ in 0..NUM_ROUNDS_LARGEDIM {
-        let coords = bridson(&[2.5, 2.5, 2.5, 2.5, 2.5], rmin, 30).unwrap();
+        let coords = bridson(&[2.5, 2.5, 2.5, 2.5, 2.5], rmin, 30, true).unwrap();
         check_coords(&coords, rmin);
     }
 }
@@ -101,7 +101,7 @@ fn six_dimensions() {
     let rmin = 1.0;
 
     for _ in 0..NUM_ROUNDS_LARGEDIM {
-        let coords = bridson(&[3.0, 2.0, 2.0, 2.0, 2.0, 2.0], rmin, 30).unwrap();
+        let coords = bridson(&[3.0, 2.0, 2.0, 2.0, 2.0, 2.0], rmin, 30, true).unwrap();
         check_coords(&coords, rmin);
     }
 }

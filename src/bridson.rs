@@ -19,10 +19,19 @@ type Coord = Vec<f64>;
 ///
 /// This function uses `rand::thread_rng()` as a random number generator. To use another generator,
 /// use the [`bridson_rng`] function.
-pub fn bridson(box_size: &[f64], rmin: f64, num_attempts: usize) -> Result<Vec<Coord>, Error> {
+///
+/// # Periodic boundary conditions
+/// If `use_pbc` is set to `true` the algorithm will look for neighbours across the periodic borders
+/// of the grid. This is slightly slower: about 25% to 35%, for the same number of generated points.
+pub fn bridson(
+    box_size: &[f64],
+    rmin: f64,
+    num_attempts: usize,
+    use_pbc: bool,
+) -> Result<Vec<Coord>, Error> {
     let mut rng = rand::thread_rng();
 
-    bridson_rng(box_size, rmin, num_attempts, &mut rng)
+    bridson_rng(box_size, rmin, num_attempts, use_pbc, &mut rng)
 }
 
 /// Generate samples from a Poisson disc distribution using a specific random number generator.
@@ -32,6 +41,7 @@ pub fn bridson_rng<R: Rng>(
     box_size: &[f64],
     rmin: f64,
     num_attempts: usize,
+    use_pbc: bool,
     rng: &mut R,
 ) -> Result<Vec<Coord>, Error> {
     // Validate input numbers as positive and bounded
@@ -49,7 +59,7 @@ pub fn bridson_rng<R: Rng>(
 
     let x0 = gen_init_coord(box_size, rng);
     let grid_index = grid
-        .get_index_from_coord(&x0)
+        .get_index_from_coord(&x0, use_pbc)
         .ok_or(Error::GenCoordOutOfBounds(x0.clone()))?;
 
     let mut active_inds = HashSet::new();
@@ -67,12 +77,13 @@ pub fn bridson_rng<R: Rng>(
             &grid,
             num_attempts,
             rmin,
+            use_pbc,
             &mut sphere_gen,
             rng,
         ) {
             Some(coord) => {
                 let sample_grid_index = grid
-                    .get_index_from_coord(&coord)
+                    .get_index_from_coord(&coord, use_pbc)
                     .ok_or(Error::GenCoordOutOfBounds(coord.clone()))?;
 
                 add_sample_to_list_and_grid(
@@ -125,13 +136,14 @@ fn get_sample_around<R: Rng>(
     grid: &Grid,
     num_attempts: usize,
     rmin: f64,
+    use_pbc: bool,
     sphere_gen: &mut NBallGen,
     rng: &mut R,
 ) -> Option<Coord> {
     for _ in 0..num_attempts {
         let x1 = sphere_gen.gen_around(x0, rng);
 
-        if check_if_coord_is_valid(&x1, samples, grid, rmin) {
+        if check_if_coord_is_valid(&x1, samples, grid, rmin, use_pbc) {
             return Some(x1);
         }
     }
@@ -139,7 +151,13 @@ fn get_sample_around<R: Rng>(
     None
 }
 
-fn check_if_coord_is_valid(coord: &Coord, samples: &[Coord], grid: &Grid, rmin: f64) -> bool {
+fn check_if_coord_is_valid(
+    coord: &Coord,
+    samples: &[Coord],
+    grid: &Grid,
+    rmin: f64,
+    use_pbc: bool,
+) -> bool {
     match grid.get_position_from_coord(coord) {
         Some(position) => {
             let index_ranges: Vec<(isize, isize)> = position
@@ -162,6 +180,7 @@ fn check_if_coord_is_valid(coord: &Coord, samples: &[Coord], grid: &Grid, rmin: 
                 grid,
                 &position,
                 rmin,
+                use_pbc,
             )
         }
         None => false,
@@ -177,6 +196,7 @@ fn recurse_and_check(
     grid: &Grid,
     original_position: &[isize],
     rmin: f64,
+    use_pbc: bool,
 ) -> bool {
     match index_ranges.split_first() {
         Some((&(imin, imax), tail)) => {
@@ -184,7 +204,7 @@ fn recurse_and_check(
                 position.push(i);
 
                 let result = if tail.is_empty() {
-                    check_coord_at_position(coord, position.as_ref(), samples, grid, rmin)
+                    check_coord_at_position(coord, position.as_ref(), samples, grid, rmin, use_pbc)
                 } else {
                     recurse_and_check(
                         position,
@@ -194,6 +214,7 @@ fn recurse_and_check(
                         grid,
                         original_position,
                         rmin,
+                        use_pbc,
                     )
                 };
 
@@ -225,13 +246,21 @@ fn check_coord_at_position(
     samples: &[Coord],
     grid: &Grid,
     rmin: f64,
+    use_pbc: bool,
 ) -> bool {
     match grid
-        .get_index(grid_position)
+        .get_index(grid_position, use_pbc)
         .and_then(|grid_index| get_sample_from_grid(grid_index, samples, grid))
     {
-        // Some(existing_coord) => calc_distance(coord, existing_coord) >= rmin,
-        Some(existing_coord) => calc_distance_pbc(coord, existing_coord, &grid.pbc) >= rmin,
+        Some(existing_coord) => {
+            let r = if use_pbc {
+                calc_distance_pbc(coord, existing_coord, &grid.pbc)
+            } else {
+                calc_distance(coord, existing_coord)
+            };
+
+            r >= rmin
+        }
         None => true,
     }
 }
@@ -290,7 +319,7 @@ mod tests {
             .map(|(&i, dx)| (i as f64 + 0.5) * dx)
             .collect();
 
-        let grid_index = grid.get_index(position).unwrap();
+        let grid_index = grid.get_index(position, true).unwrap();
         let mut buf = HashSet::new();
 
         add_sample_to_list_and_grid(coord, grid_index, samples, &mut buf, grid);
@@ -306,7 +335,7 @@ mod tests {
 
         let grid = Grid::new(&shape, &size).unwrap();
 
-        assert!(check_if_coord_is_valid(&coord, &[], &grid, rmin))
+        assert!(check_if_coord_is_valid(&coord, &[], &grid, rmin, true))
     }
 
     #[test]
@@ -322,7 +351,7 @@ mod tests {
 
         add_sample_at_grid_position(&[3, 3], &mut samples, &mut grid);
 
-        assert!(check_if_coord_is_valid(&coord, &samples, &grid, rmin))
+        assert!(check_if_coord_is_valid(&coord, &samples, &grid, rmin, true))
     }
 
     #[test]
@@ -345,7 +374,9 @@ mod tests {
         // Set the coordinate close enough to the candidate (cheating!)
         samples[0] = vec![1.0, 2.0];
 
-        assert!(!check_if_coord_is_valid(&coord, &samples, &grid, rmin))
+        assert!(!check_if_coord_is_valid(
+            &coord, &samples, &grid, rmin, true
+        ))
     }
 
     #[test]
@@ -361,7 +392,9 @@ mod tests {
 
         add_sample_at_grid_position(&[2, 1], &mut samples, &mut grid);
 
-        assert!(!check_if_coord_is_valid(&coord, &samples, &grid, rmin))
+        assert!(!check_if_coord_is_valid(
+            &coord, &samples, &grid, rmin, true
+        ))
     }
 
     #[test]
@@ -378,7 +411,7 @@ mod tests {
         add_sample_at_grid_position(&[2, 1], &mut samples, &mut grid);
         samples[0] = vec![5.99, 3.99]; // bin: 2, 1
 
-        assert!(check_if_coord_is_valid(&coord, &samples, &grid, rmin))
+        assert!(check_if_coord_is_valid(&coord, &samples, &grid, rmin, true))
     }
 
     #[test]
@@ -395,10 +428,12 @@ mod tests {
         add_sample_at_grid_position(&[1, 3], &mut samples, &mut grid);
 
         samples[0] = vec![3.0, 4.0]; // bin: 1, 3, but out of range
-        assert!(check_if_coord_is_valid(&coord, &samples, &grid, rmin));
+        assert!(check_if_coord_is_valid(&coord, &samples, &grid, rmin, true));
 
         samples[0] = vec![3.0, 8.0]; // bin: 1, 3, in range
-        assert!(!check_if_coord_is_valid(&coord, &samples, &grid, rmin));
+        assert!(!check_if_coord_is_valid(
+            &coord, &samples, &grid, rmin, true
+        ));
     }
 
     /*************************
@@ -410,7 +445,7 @@ mod tests {
         let box_size = [5.0, 5.0];
         let num_attempts = 10;
 
-        assert!(bridson(&box_size, 1.0, 10).is_ok());
+        assert!(bridson(&box_size, 1.0, 10, true).is_ok());
 
         let rmin_zero = 0.0;
         let rmin_neg = -1.0;
@@ -418,30 +453,30 @@ mod tests {
         let rmin_inf = f64::INFINITY;
         let rmin_neg_inf = f64::NEG_INFINITY;
 
-        assert!(bridson(&box_size, rmin_zero, num_attempts)
+        assert!(bridson(&box_size, rmin_zero, num_attempts, true)
             .unwrap_err()
             .is_invalid_rmin());
 
-        assert!(bridson(&box_size, rmin_neg, num_attempts)
+        assert!(bridson(&box_size, rmin_neg, num_attempts, true)
             .unwrap_err()
             .is_invalid_rmin());
 
-        assert!(bridson(&box_size, rmin_nan, num_attempts)
+        assert!(bridson(&box_size, rmin_nan, num_attempts, true)
             .unwrap_err()
             .is_invalid_rmin());
 
-        assert!(bridson(&box_size, rmin_inf, num_attempts)
+        assert!(bridson(&box_size, rmin_inf, num_attempts, true)
             .unwrap_err()
             .is_invalid_rmin());
 
-        assert!(bridson(&box_size, rmin_neg_inf, num_attempts)
+        assert!(bridson(&box_size, rmin_neg_inf, num_attempts, true)
             .unwrap_err()
             .is_invalid_rmin());
     }
 
     #[test]
     fn empty_box_size_yields_no_coords() {
-        assert!(bridson(&[], 1.0, 10).unwrap().is_empty());
+        assert!(bridson(&[], 1.0, 10, true).unwrap().is_empty());
     }
 
     #[test]
@@ -449,43 +484,43 @@ mod tests {
         let rmin = 1.0;
         let num_attempts = 10;
 
-        assert!(bridson(&[5.0, 5.0], rmin, num_attempts).is_ok());
+        assert!(bridson(&[5.0, 5.0], rmin, num_attempts, true).is_ok());
 
         // Use invalid box size values at the front and back of the given
         // array, to ensure that all are tested.
-        assert!(bridson(&[-5.0, 5.0], rmin, num_attempts)
+        assert!(bridson(&[-5.0, 5.0], rmin, num_attempts, true)
             .unwrap_err()
             .is_invalid_box_size());
 
-        assert!(bridson(&[5.0, -5.0], rmin, num_attempts)
+        assert!(bridson(&[5.0, -5.0], rmin, num_attempts, true)
             .unwrap_err()
             .is_invalid_box_size());
 
-        assert!(bridson(&[-5.0, -5.0], rmin, num_attempts)
+        assert!(bridson(&[-5.0, -5.0], rmin, num_attempts, true)
             .unwrap_err()
             .is_invalid_box_size());
 
-        assert!(bridson(&[f64::NAN, 5.0], rmin, num_attempts)
+        assert!(bridson(&[f64::NAN, 5.0], rmin, num_attempts, true)
             .unwrap_err()
             .is_invalid_box_size());
 
-        assert!(bridson(&[5.0, f64::NAN], rmin, num_attempts)
+        assert!(bridson(&[5.0, f64::NAN], rmin, num_attempts, true)
             .unwrap_err()
             .is_invalid_box_size());
 
-        assert!(bridson(&[f64::INFINITY, 5.0], rmin, num_attempts)
+        assert!(bridson(&[f64::INFINITY, 5.0], rmin, num_attempts, true)
             .unwrap_err()
             .is_invalid_box_size());
 
-        assert!(bridson(&[5.0, f64::INFINITY], rmin, num_attempts)
+        assert!(bridson(&[5.0, f64::INFINITY], rmin, num_attempts, true)
             .unwrap_err()
             .is_invalid_box_size());
 
-        assert!(bridson(&[5.0, f64::NEG_INFINITY], rmin, num_attempts)
+        assert!(bridson(&[5.0, f64::NEG_INFINITY], rmin, num_attempts, true)
             .unwrap_err()
             .is_invalid_box_size());
 
-        assert!(bridson(&[f64::NEG_INFINITY, 5.0], rmin, num_attempts)
+        assert!(bridson(&[f64::NEG_INFINITY, 5.0], rmin, num_attempts, true)
             .unwrap_err()
             .is_invalid_box_size());
     }
@@ -495,8 +530,8 @@ mod tests {
         let box_size = [5.0, 5.0];
         let rmin = 1.0;
 
-        assert!(bridson(&box_size, rmin, 0).is_ok());
-        assert!(bridson(&box_size, rmin, 1).is_ok());
-        assert!(bridson(&box_size, rmin, 10).is_ok());
+        assert!(bridson(&box_size, rmin, 0, true).is_ok());
+        assert!(bridson(&box_size, rmin, 1, true).is_ok());
+        assert!(bridson(&box_size, rmin, 10, true).is_ok());
     }
 }

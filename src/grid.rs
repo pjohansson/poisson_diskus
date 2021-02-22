@@ -1,24 +1,3 @@
-use std::fmt;
-
-#[derive(Clone, Debug, PartialEq)]
-pub enum Error {
-    UnmatchedShapeAndSize { shape: Vec<usize>, size: Vec<f64> },
-}
-
-impl fmt::Display for Error {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Error::UnmatchedShapeAndSize { size, shape } => write!(
-                f,
-                "could not create grid: shape ({:?}) and size ({:?}) vectors do not have equal dimension",
-                shape, size
-            ),
-        }
-    }
-}
-
-impl std::error::Error for Error {}
-
 #[derive(Clone, Debug, PartialEq)]
 pub struct PbcInfo {
     pub box_size: Vec<f64>,
@@ -53,21 +32,21 @@ pub struct Grid<const D: usize> {
 }
 
 impl<const D: usize> Grid<D> {
-    pub fn new(shape: &[usize; D], box_size: &[f64; D]) -> Result<Self, Error> {
+    pub fn new(shape: &[usize; D], box_size: &[f64; D]) -> Self {
         let mut spacing = [0.0; D];
         spacing
             .iter_mut()
             .zip(shape.iter().zip(box_size.iter()))
             .for_each(|(sp, (&n, size))| *sp = size / n as f64);
 
-        Ok(Grid {
+        Grid {
             dim_multipliers: create_dimension_multipliers(shape),
             num_adjacent: (D as f64).sqrt().ceil() as usize,
             shape: shape.clone(),
             spacing,
             pbc: PbcInfo::new(box_size),
             data: vec![None; shape.iter().product()],
-        })
+        }
     }
 
     /// Return the 1d data index of the bin with the input position.
@@ -166,7 +145,7 @@ mod tests {
                 .try_into()
                 .expect("error in test: did not create `size` array consistent with `shape` array");
 
-            Grid::new(shape, &size).unwrap()
+            Grid::new(shape, &size)
         }
     }
 
@@ -175,7 +154,7 @@ mod tests {
         let shape = [1, 2, 3, 4];
 
         let grid_with_shape = Grid::with_shape(&shape);
-        let grid_new = Grid::new(&shape, &[1.0, 2.0, 3.0, 4.0]).unwrap();
+        let grid_new = Grid::new(&shape, &[1.0, 2.0, 3.0, 4.0]);
 
         assert_eq!(grid_with_shape, grid_new);
     }
@@ -209,7 +188,7 @@ mod tests {
         let shape = [1, 2, 3, 4];
         let size = [4.0, 4.0, 4.0, 4.0];
 
-        let grid = Grid::new(&shape, &size).unwrap();
+        let grid = Grid::new(&shape, &size);
 
         assert_eq!(&grid.spacing, &[4.0, 2.0, 4.0 / 3.0, 1.0]);
     }
@@ -367,7 +346,7 @@ mod tests {
         let shape = [2, 4];
         let size = [10.0, 10.0];
 
-        let grid = Grid::new(&shape, &size).unwrap();
+        let grid = Grid::new(&shape, &size);
 
         assert_eq!(grid.get_position_from_coord(&[0.0, 0.0]).unwrap(), &[0, 0]);
         assert_eq!(grid.get_position_from_coord(&[4.9, 2.4]).unwrap(), &[0, 0]);
@@ -382,7 +361,7 @@ mod tests {
         let shape = [2, 4];
         let size = [10.0, 10.0];
 
-        let grid = Grid::new(&shape, &size).unwrap();
+        let grid = Grid::new(&shape, &size);
 
         assert!(grid.get_position_from_coord(&[-0.5, 0.0]).is_none());
         assert!(grid.get_position_from_coord(&[0.0, -0.5]).is_none());
@@ -395,7 +374,7 @@ mod tests {
         let shape = [2, 4];
         let size = [10.0, 10.0];
 
-        let grid = Grid::new(&shape, &size).unwrap();
+        let grid = Grid::new(&shape, &size);
 
         for coord in &[
             [0.0, 0.0],

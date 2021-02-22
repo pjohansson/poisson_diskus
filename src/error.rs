@@ -20,11 +20,6 @@ pub enum Error<const D: usize> {
     ///
     /// This should not happen. Please file an issue if you encounter this.
     InvalidActiveList,
-    /// Tried to create a grid with mismatching dimensions between the box size
-    /// and shape arrays.
-    ///
-    /// This should not happen. Please file an issue if you encounter this.
-    UnmatchedDims,
 }
 
 impl<const D: usize> fmt::Display for Error<D> {
@@ -48,10 +43,6 @@ impl<const D: usize> fmt::Display for Error<D> {
             Error::InvalidActiveList => write!(
                 f,
                 "active list contains an index which does not lead to a sample: this should not happen, please file an issue"
-            ),
-            Error::UnmatchedDims => write!(
-                f,
-                "created a shape of dimensions which do not match the given box size: this should not happen, please file an issue"
             ),
         }
     }

@@ -53,7 +53,7 @@ pub fn bridson_rng<R: Rng, const D: usize>(
     }
 
     let shape = get_grid_shape(rmin, box_size);
-    let mut grid: Grid<D> = Grid::new(&shape, box_size).map_err(|_| Error::UnmatchedDims)?;
+    let mut grid: Grid<D> = Grid::new(&shape, box_size);
 
     let mut sphere_gen = NBallGen::new(rmin);
 
@@ -345,7 +345,7 @@ mod tests {
         let coord = [3.0, 3.0]; // bin: [1, 1]
         let rmin = 2.0 * 2.0_f64.sqrt();
 
-        let grid = Grid::new(&shape, &size).unwrap();
+        let grid = Grid::new(&shape, &size);
 
         assert!(check_if_coord_is_valid(&coord, &[], &grid, rmin, true))
     }
@@ -358,7 +358,7 @@ mod tests {
         let coord = [3.0, 3.0]; // bin: [1, 1]
         let rmin = 2.0 * 2.0_f64.sqrt();
 
-        let mut grid = Grid::new(&shape, &size).unwrap();
+        let mut grid = Grid::new(&shape, &size);
         let mut samples = Vec::new();
 
         add_sample_at_grid_position(&[3, 3], &mut samples, &mut grid);
@@ -375,7 +375,7 @@ mod tests {
         let coord = [1.0, 1.0]; // bin: [0, 0]
         let rmin = 2.0 * 2.0_f64.sqrt();
 
-        let mut grid = Grid::new(&shape, &size).unwrap();
+        let mut grid = Grid::new(&shape, &size);
 
         let mut samples = Vec::new();
         add_sample_at_grid_position(&[3, 3], &mut samples, &mut grid);
@@ -399,7 +399,7 @@ mod tests {
         let coord = [3.0, 3.0]; // bin: [1, 1]
         let rmin = 2.0 * 2.0_f64.sqrt();
 
-        let mut grid = Grid::new(&shape, &size).unwrap();
+        let mut grid = Grid::new(&shape, &size);
         let mut samples = Vec::new();
 
         add_sample_at_grid_position(&[2, 1], &mut samples, &mut grid);
@@ -417,7 +417,7 @@ mod tests {
         let coord = [2.01, 2.01]; // bin: [1, 1]
         let rmin = 2.0 * 2.0_f64.sqrt();
 
-        let mut grid = Grid::new(&shape, &size).unwrap();
+        let mut grid = Grid::new(&shape, &size);
         let mut samples = Vec::new();
 
         add_sample_at_grid_position(&[2, 1], &mut samples, &mut grid);
@@ -434,7 +434,7 @@ mod tests {
         let coord = [3.0, 0.0]; // bin: [1, 0]
         let rmin = 2.0 * 2.0_f64.sqrt();
 
-        let mut grid = Grid::new(&shape, &size).unwrap();
+        let mut grid = Grid::new(&shape, &size);
         let mut samples = Vec::new();
 
         add_sample_at_grid_position(&[1, 3], &mut samples, &mut grid);

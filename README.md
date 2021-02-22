@@ -5,7 +5,7 @@ Rust library for sampling a Poisson disk distribution in multiple dimensions.
 The Poisson disk distribution produces samples of which no two samples are too close 
 to each other. This results in a more uniform distribution than from pure random sampling.
 
-This library is an implementation of the algorithm introduced by Robert Bridson [1]
+This library is an implementation of the algorithm introduced by Robert Bridson \[1\]
 which is O(N) for producing N samples. That is, the sampling time increases linearly 
 with the number of produced samples. For two-dimensional sampling, the sampling time 
 increases with the area and for three-dimensional sampling with the volume.
@@ -29,27 +29,37 @@ use poisson_diskus::bridson;
 let box_size = [3.0, 5.0, 7.0];
 let rmin = 0.5;
 let num_attempts = 30;
+let use_pbc = false;
 
-let coords = bridson(&box_size, rmin, num_attempts).unwrap();
+let coords = bridson(&box_size, rmin, num_attempts, use_pbc).unwrap();
 ```
 
 ## Larger number of dimensions
+The generated points have the same number of dimensions as the input box size. 
+Note that the sampling speed decreases very quickly as the number of dimensions is increased.
+
 ```rust
 use poisson_diskus::bridson;
 
 let box_size = [3.0, 5.0, 3.0, 2.0, 1.0];
 let rmin = 1.0;
 let num_attempts = 30;
+let use_pbc = false;
 
-let coords = bridson(&box_size, rmin, num_attempts).unwrap();
+let coords = bridson(&box_size, rmin, num_attempts, use_pbc).unwrap();
 
 for coord in coords {
     assert_eq!(coord.len(), box_size.len());
 }
 ```
 
+## Periodic boundary conditions
+Use the `use_pbc` parameter to control whether the algorithm should look for neighbours
+within the minimum distance in periodic images of the space. This is slightly slower: 
+about 25%-35% for the same number of generated points.
+
 # Citations
-[1] Bridson, R. (2007). Fast Poisson disk sampling in arbitrary dimensions. SIGGRAPH sketches, 10, 1.
+\[1\] Bridson, R. (2007). Fast Poisson disk sampling in arbitrary dimensions. SIGGRAPH sketches, 10, 1.
 
 # License
 This library is offered under the permissive Blue Oak license. See [LICENSE.md](LICENSE.md) for more details.

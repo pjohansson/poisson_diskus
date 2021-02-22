@@ -53,7 +53,7 @@ pub fn bridson_rng<R: Rng, const D: usize>(
     }
 
     let shape = get_grid_shape(rmin, box_size);
-    let mut grid = Grid::new(&shape, box_size).map_err(|_| Error::UnmatchedDims)?;
+    let mut grid: Grid<D> = Grid::new(&shape, box_size).map_err(|_| Error::UnmatchedDims)?;
 
     let mut sphere_gen = NBallGen::new(rmin);
 
@@ -108,7 +108,7 @@ fn add_sample_to_list_and_grid<const D: usize>(
     grid_index: usize,
     samples: &mut Vec<Coord<D>>,
     active_inds: &mut HashSet<usize>,
-    grid: &mut Grid,
+    grid: &mut Grid<D>,
 ) {
     let sample_index = samples.len();
 
@@ -121,7 +121,7 @@ fn add_sample_to_list_and_grid<const D: usize>(
 fn get_sample_from_grid<'a, const D: usize>(
     grid_index: usize,
     samples: &'a [Coord<D>],
-    grid: &Grid,
+    grid: &Grid<D>,
 ) -> Option<&'a Coord<D>> {
     grid.data
         .get(grid_index)
@@ -133,7 +133,7 @@ fn get_sample_from_grid<'a, const D: usize>(
 fn get_sample_around<R: Rng, const D: usize>(
     x0: &Coord<D>,
     samples: &[Coord<D>],
-    grid: &Grid,
+    grid: &Grid<D>,
     num_attempts: usize,
     rmin: f64,
     use_pbc: bool,
@@ -154,7 +154,7 @@ fn get_sample_around<R: Rng, const D: usize>(
 fn check_if_coord_is_valid<const D: usize>(
     coord: &Coord<D>,
     samples: &[Coord<D>],
-    grid: &Grid,
+    grid: &Grid<D>,
     rmin: f64,
     use_pbc: bool,
 ) -> bool {
@@ -193,7 +193,7 @@ fn recurse_and_check<const D: usize>(
     index_ranges: &[(isize, isize)],
     coord: &Coord<D>,
     samples: &[Coord<D>],
-    grid: &Grid,
+    grid: &Grid<D>,
     original_position: &[isize],
     rmin: f64,
     use_pbc: bool,
@@ -244,7 +244,7 @@ fn check_coord_at_position<const D: usize>(
     coord: &Coord<D>,
     grid_position: &[isize],
     samples: &[Coord<D>],
-    grid: &Grid,
+    grid: &Grid<D>,
     rmin: f64,
     use_pbc: bool,
 ) -> bool {
@@ -265,18 +265,21 @@ fn check_coord_at_position<const D: usize>(
     }
 }
 
-fn get_grid_shape(rmin: f64, box_size: &[f64]) -> Vec<usize> {
-    get_max_bin_size(rmin, box_size)
-        .iter()
-        .map(|v| v.ceil() as usize)
-        .collect()
-}
+/// Calculate the number of bins in each dimension for the grid.
+fn get_grid_shape<const D: usize>(rmin: f64, box_size: &[f64; D]) -> [usize; D] {
+    let max_bin_side_length = rmin / (D as f64).sqrt();
+    let mut shape = [0; D];
 
-fn get_max_bin_size(rmin: f64, box_size: &[f64]) -> Vec<f64> {
-    let ndim = box_size.len();
-    let max_size = rmin / (ndim as f64).sqrt();
+    shape
+        .iter_mut()
+        .zip(box_size.iter())
+        .for_each(|(v, length)| {
+            let max_bin_size = length / max_bin_side_length;
 
-    box_size.iter().map(|v| v / max_size).collect()
+            *v = max_bin_size.ceil() as usize;
+        });
+
+    shape
 }
 
 /*************************
@@ -315,7 +318,7 @@ mod tests {
     fn add_sample_at_grid_position<const D: usize>(
         position: &[isize],
         samples: &mut Vec<Coord<D>>,
-        grid: &mut Grid,
+        grid: &mut Grid<D>,
     ) {
         use std::convert::TryInto;
 

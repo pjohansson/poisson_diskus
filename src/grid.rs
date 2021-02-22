@@ -37,42 +37,35 @@ impl PbcInfo {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub struct Grid {
+pub struct Grid<const D: usize> {
     /// Conversion multipliers to convert to and from bin positions and the 1d index in `data`.
-    dim_multipliers: Vec<usize>,
+    dim_multipliers: [usize; D],
     /// Number of bins around each bin which are within range of the minimum distance.
     pub(crate) num_adjacent: usize,
     /// Shape of grid.
-    pub(crate) shape: Vec<usize>,
+    pub(crate) shape: [usize; D],
     /// Spacing of bins in grid.
-    pub(crate) spacing: Vec<f64>,
+    pub(crate) spacing: [f64; D],
     /// Information about the size of the grid, used to calculate PBC information.
     pub(crate) pbc: PbcInfo,
     /// Data of grid as a one-dimensional vector.
     pub data: Vec<Option<usize>>,
 }
 
-impl Grid {
-    pub fn new(shape: &[usize], size: &[f64]) -> Result<Self, Error> {
-        if shape.len() != size.len() {
-            return Err(Error::UnmatchedShapeAndSize {
-                shape: shape.to_vec(),
-                size: size.to_vec(),
-            });
-        }
-
-        let spacing = size
-            .iter()
-            .zip(shape.iter())
-            .map(|(s, &n)| s / (n as f64))
-            .collect();
+impl<const D: usize> Grid<D> {
+    pub fn new(shape: &[usize; D], box_size: &[f64; D]) -> Result<Self, Error> {
+        let mut spacing = [0.0; D];
+        spacing
+            .iter_mut()
+            .zip(shape.iter().zip(box_size.iter()))
+            .for_each(|(sp, (&n, size))| *sp = size / n as f64);
 
         Ok(Grid {
             dim_multipliers: create_dimension_multipliers(shape),
-            num_adjacent: (shape.len() as f64).sqrt().ceil() as usize,
-            shape: shape.to_vec(),
+            num_adjacent: (D as f64).sqrt().ceil() as usize,
+            shape: shape.clone(),
             spacing,
-            pbc: PbcInfo::new(size),
+            pbc: PbcInfo::new(box_size),
             data: vec![None; shape.iter().product()],
         })
     }
@@ -146,8 +139,8 @@ impl Grid {
     }
 }
 
-fn create_dimension_multipliers(shape: &[usize]) -> Vec<usize> {
-    let mut dim_multipliers = vec![1; shape.len()];
+fn create_dimension_multipliers<const D: usize>(shape: &[usize; D]) -> [usize; D] {
+    let mut dim_multipliers = [1; D];
 
     for (i, s) in shape.iter().rev().enumerate() {
         for d in dim_multipliers.iter_mut().rev().skip(i + 1) {
@@ -162,9 +155,16 @@ fn create_dimension_multipliers(shape: &[usize]) -> Vec<usize> {
 mod tests {
     use super::*;
 
-    impl Grid {
-        fn with_shape(shape: &[usize]) -> Self {
-            let size: Vec<f64> = shape.iter().map(|v| *v as f64).collect();
+    impl<const D: usize> Grid<D> {
+        fn with_shape(shape: &[usize; D]) -> Self {
+            use std::convert::TryInto;
+
+            let size: [f64; D] = shape
+                .iter()
+                .map(|v| *v as f64)
+                .collect::<Vec<f64>>()
+                .try_into()
+                .expect("error in test: did not create `size` array consistent with `shape` array");
 
             Grid::new(shape, &size).unwrap()
         }
@@ -178,18 +178,6 @@ mod tests {
         let grid_new = Grid::new(&shape, &[1.0, 2.0, 3.0, 4.0]).unwrap();
 
         assert_eq!(grid_with_shape, grid_new);
-    }
-
-    #[test]
-    fn grid_new_requires_matching_shape_and_size_vector_lengths() {
-        // Mathing lengths
-        assert!(Grid::new(&[], &[]).is_ok());
-        assert!(Grid::new(&[3], &[5.0]).is_ok());
-        assert!(Grid::new(&[3, 5], &[5.0, 7.0]).is_ok());
-
-        // Non-matching lengths
-        assert!(Grid::new(&[3], &[5.0, 7.0]).is_err());
-        assert!(Grid::new(&[3, 5], &[5.0]).is_err());
     }
 
     #[test]
@@ -436,11 +424,11 @@ mod tests {
 
     #[test]
     fn num_adjacent_bins_is_square_root_of_dims() {
-        assert_eq!(Grid::with_shape(&vec![1; 1]).num_adjacent, 1);
-        assert_eq!(Grid::with_shape(&vec![1; 2]).num_adjacent, 2);
-        assert_eq!(Grid::with_shape(&vec![1; 3]).num_adjacent, 2);
-        assert_eq!(Grid::with_shape(&vec![1; 4]).num_adjacent, 2);
-        assert_eq!(Grid::with_shape(&vec![1; 5]).num_adjacent, 3);
-        assert_eq!(Grid::with_shape(&vec![1; 6]).num_adjacent, 3);
+        assert_eq!(Grid::with_shape(&[1; 1]).num_adjacent, 1);
+        assert_eq!(Grid::with_shape(&[1; 2]).num_adjacent, 2);
+        assert_eq!(Grid::with_shape(&[1; 3]).num_adjacent, 2);
+        assert_eq!(Grid::with_shape(&[1; 4]).num_adjacent, 2);
+        assert_eq!(Grid::with_shape(&[1; 5]).num_adjacent, 3);
+        assert_eq!(Grid::with_shape(&[1; 6]).num_adjacent, 3);
     }
 }

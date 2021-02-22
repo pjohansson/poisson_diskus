@@ -16,10 +16,10 @@ See the [documentation](https://docs.rs/poisson-diskus/) for more information ab
 
 ## Set-up
 Add the library as a dependency to your project in `Cargo.toml`:
-```
+```toml
 [dependencies]
 #
-poisson-diskus = "1.0.0-pre.2"
+poisson-diskus = "1.0.0-pre.3"
 ```
 
 ## Three dimensions

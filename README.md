@@ -5,6 +5,8 @@ Rust library for sampling a Poisson disk distribution in multiple dimensions.
 The Poisson disk distribution produces samples of which no two samples are too close 
 to each other. This results in a more uniform distribution than from pure random sampling.
 
+![Example of generated samples](assets/sample-example.png)
+
 This library is an implementation of the algorithm introduced by Robert Bridson \[1\]
 which is O(N) for producing N samples. That is, the sampling time increases linearly 
 with the number of produced samples. For two-dimensional sampling, the sampling time 
@@ -57,6 +59,14 @@ for coord in coords {
 Use the `use_pbc` parameter to control whether the algorithm should look for neighbours
 within the minimum distance in periodic images of the space. This is slightly slower: 
 about 25%-35% for the same number of generated points.
+
+# Note on accuracy
+While the generated results look alright when inspecting by eye the generated distribution
+is not verified to be accurate. Currently, computing a radial density distribution of samples
+show some weird behavior. 
+
+In short, I would currently recommend against using this for work where the distribution 
+of points is critical. Or, at the very least, to inspect the results before use.
 
 # Citations
 \[1\] Bridson, R. (2007). Fast Poisson disk sampling in arbitrary dimensions. SIGGRAPH sketches, 10, 1.

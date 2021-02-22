@@ -38,6 +38,10 @@ pub fn bridson_rng<R: Rng>(
     validate_rmin(rmin)?;
     validate_box_size(box_size)?;
 
+    if box_size.is_empty() {
+        return Ok(vec![]);
+    }
+
     let shape = get_grid_shape(rmin, box_size);
     let mut grid = Grid::new(&shape, box_size).map_err(|_| Error::UnmatchedDims)?;
 
@@ -407,6 +411,11 @@ mod tests {
         assert!(bridson(&box_size, rmin_neg_inf, num_attempts)
             .unwrap_err()
             .is_invalid_rmin());
+    }
+
+    #[test]
+    fn empty_box_size_yields_no_coords() {
+        assert!(bridson(&[], 1.0, 10).unwrap().is_empty());
     }
 
     #[test]

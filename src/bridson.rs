@@ -2,7 +2,7 @@ use rand::Rng;
 use std::collections::HashSet;
 
 use crate::{
-    coord::calc_distance,
+    coord::{calc_distance, calc_distance_pbc},
     error::Error,
     grid::Grid,
     sample::{gen_init_coord, get_active_index, NBallGen},
@@ -142,9 +142,14 @@ fn get_sample_around<R: Rng>(
 fn check_if_coord_is_valid(coord: &Coord, samples: &[Coord], grid: &Grid, rmin: f64) -> bool {
     match grid.get_position_from_coord(coord) {
         Some(position) => {
-            let index_ranges: Vec<(usize, usize)> = position
+            let index_ranges: Vec<(isize, isize)> = position
                 .iter()
-                .map(|&i| (i.saturating_sub(grid.num_adjacent), i + grid.num_adjacent))
+                .map(|&i| {
+                    (
+                        i - grid.num_adjacent as isize,
+                        i + grid.num_adjacent as isize,
+                    )
+                })
                 .collect();
 
             let mut position_buf = Vec::with_capacity(position.len());
@@ -165,12 +170,12 @@ fn check_if_coord_is_valid(coord: &Coord, samples: &[Coord], grid: &Grid, rmin: 
 
 /// Recurse through the position range of all dimensions and verify the grid position.
 fn recurse_and_check(
-    position: &mut Vec<usize>,
-    index_ranges: &[(usize, usize)],
+    position: &mut Vec<isize>,
+    index_ranges: &[(isize, isize)],
     coord: &Coord,
     samples: &[Coord],
     grid: &Grid,
-    original_position: &[usize],
+    original_position: &[isize],
     rmin: f64,
 ) -> bool {
     match index_ranges.split_first() {
@@ -216,7 +221,7 @@ fn recurse_and_check(
 /// from the output.
 fn check_coord_at_position(
     coord: &Coord,
-    grid_position: &[usize],
+    grid_position: &[isize],
     samples: &[Coord],
     grid: &Grid,
     rmin: f64,
@@ -225,7 +230,8 @@ fn check_coord_at_position(
         .get_index(grid_position)
         .and_then(|grid_index| get_sample_from_grid(grid_index, samples, grid))
     {
-        Some(existing_coord) => calc_distance(coord, existing_coord) >= rmin,
+        // Some(existing_coord) => calc_distance(coord, existing_coord) >= rmin,
+        Some(existing_coord) => calc_distance_pbc(coord, existing_coord, &grid.pbc) >= rmin,
         None => true,
     }
 }
@@ -277,7 +283,7 @@ fn validate_box_size(box_size: &[f64]) -> Result<(), Error> {
 mod tests {
     use super::*;
 
-    fn add_sample_at_grid_position(position: &[usize], samples: &mut Vec<Coord>, grid: &mut Grid) {
+    fn add_sample_at_grid_position(position: &[isize], samples: &mut Vec<Coord>, grid: &mut Grid) {
         let coord = position
             .iter()
             .zip(grid.spacing.iter())
@@ -373,6 +379,26 @@ mod tests {
         samples[0] = vec![5.99, 3.99]; // bin: 2, 1
 
         assert!(check_if_coord_is_valid(&coord, &samples, &grid, rmin))
+    }
+
+    #[test]
+    fn checking_coordinates_works_over_pbc_connected_cells() {
+        let shape = [4, 4];
+        let size = [8.0, 8.0];
+
+        let coord = vec![3.0, 0.0]; // bin: [1, 0]
+        let rmin = 2.0 * 2.0_f64.sqrt();
+
+        let mut grid = Grid::new(&shape, &size).unwrap();
+        let mut samples = Vec::new();
+
+        add_sample_at_grid_position(&[1, 3], &mut samples, &mut grid);
+
+        samples[0] = vec![3.0, 4.0]; // bin: 1, 3, but out of range
+        assert!(check_if_coord_is_valid(&coord, &samples, &grid, rmin));
+
+        samples[0] = vec![3.0, 8.0]; // bin: 1, 3, in range
+        assert!(!check_if_coord_is_valid(&coord, &samples, &grid, rmin));
     }
 
     /*************************

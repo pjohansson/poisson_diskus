@@ -20,6 +20,23 @@ impl fmt::Display for Error {
 impl std::error::Error for Error {}
 
 #[derive(Clone, Debug, PartialEq)]
+pub struct PbcInfo {
+    pub box_size: Vec<f64>,
+    pub inv_box_size: Vec<f64>,
+}
+
+impl PbcInfo {
+    pub fn new(box_size: &[f64]) -> Self {
+        let inv_box_size = box_size.iter().map(|v| 1.0 / v).collect();
+
+        PbcInfo {
+            box_size: box_size.to_vec(),
+            inv_box_size,
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq)]
 pub struct Grid {
     /// Conversion multipliers to convert to and from bin positions and the 1d index in `data`.
     dim_multipliers: Vec<usize>,
@@ -29,6 +46,8 @@ pub struct Grid {
     pub(crate) shape: Vec<usize>,
     /// Spacing of bins in grid.
     pub(crate) spacing: Vec<f64>,
+    /// Information about the size of the grid, used to calculate PBC information.
+    pub(crate) pbc: PbcInfo,
     /// Data of grid as a one-dimensional vector.
     pub data: Vec<Option<usize>>,
 }
@@ -53,25 +72,35 @@ impl Grid {
             num_adjacent: (shape.len() as f64).sqrt().ceil() as usize,
             shape: shape.to_vec(),
             spacing,
+            pbc: PbcInfo::new(size),
             data: vec![None; shape.iter().product()],
         })
     }
 
-    pub fn get_index(&self, position: &[usize]) -> Option<usize> {
-        if position.iter().zip(self.shape.iter()).any(|(p, s)| p >= s) {
-            return None;
-        }
+    /// Return the 1d data index of the bin with the input position.
+    ///
+    /// Returns `None` if no valid bin is available.
+    pub fn get_index(&self, position: &[isize]) -> Option<usize> {
+        // if position
+        //     .iter()
+        //     .zip(self.shape.iter())
+        //     .any(|(&p, &s)| p as usize >= s)
+        // {
+        //     return None;
+        // }
 
         Some(
             position
                 .iter()
+                .zip(self.shape.iter())
+                .map(|(&i, &n)| i.rem_euclid(n as isize))
                 .zip(self.dim_multipliers.iter())
-                .map(|(p, m)| p * m)
+                .map(|(p, m)| p as usize * m)
                 .sum(),
         )
     }
 
-    pub fn get_position(&self, index: usize) -> Option<Vec<usize>> {
+    pub fn get_position(&self, index: usize) -> Option<Vec<isize>> {
         if index < self.data.len() {
             Some(
                 self.dim_multipliers
@@ -80,7 +109,7 @@ impl Grid {
                         let n = *i / d;
                         *i = *i % d;
 
-                        Some(n)
+                        Some(n as isize)
                     })
                     .collect(),
             )
@@ -89,22 +118,18 @@ impl Grid {
         }
     }
 
-    pub fn get_position_from_coord(&self, coord: &[f64]) -> Option<Vec<usize>> {
+    /// Return the grid position of a coordinate.
+    pub fn get_position_from_coord(&self, coord: &[f64]) -> Option<Vec<isize>> {
         coord
             .iter()
             .zip(self.spacing.iter())
             .map(|(c, dx)| (c / dx).floor() as isize)
             .zip(self.shape.iter().map(|n| *n as isize))
-            .map(|(i, n)| {
-                if i >= 0 && i < n {
-                    Some(i as usize)
-                } else {
-                    None
-                }
-            })
+            .map(|(i, n)| if i >= 0 && i < n { Some(i) } else { None })
             .collect()
     }
 
+    /// Return the 1d data index of a coordinate on the grid.
     pub fn get_index_from_coord(&self, coord: &[f64]) -> Option<usize> {
         self.get_position_from_coord(coord)
             .and_then(|position| self.get_index(&position))
@@ -210,14 +235,38 @@ mod tests {
     }
 
     #[test]
-    fn indexing_outside_of_shape_yields_none() {
-        let shape = [3, 5, 7];
+    fn indexing_out_of_shape_uses_pbc_to_get_bin() {
+        let shape = [3, 5];
         let grid = Grid::with_shape(&shape);
 
-        assert!(grid.get_index(&[0, 0, 7]).is_none());
-        assert!(grid.get_index(&[0, 5, 0]).is_none());
-        assert!(grid.get_index(&[3, 0, 0]).is_none());
+        assert_eq!(grid.get_index(&[3, 0]), grid.get_index(&[0, 0]));
+        assert_eq!(grid.get_index(&[4, 0]), grid.get_index(&[1, 0]));
+        assert_eq!(grid.get_index(&[5, 0]), grid.get_index(&[2, 0]));
+        assert_eq!(grid.get_index(&[6, 0]), grid.get_index(&[0, 0]));
+        assert_eq!(grid.get_index(&[-1, 0]), grid.get_index(&[2, 0]));
+        assert_eq!(grid.get_index(&[-2, 0]), grid.get_index(&[1, 0]));
+        assert_eq!(grid.get_index(&[-3, 0]), grid.get_index(&[0, 0]));
+        assert_eq!(grid.get_index(&[-4, 0]), grid.get_index(&[2, 0]));
+
+        assert_eq!(grid.get_index(&[2, 5]), grid.get_index(&[2, 0]));
+        assert_eq!(grid.get_index(&[2, 6]), grid.get_index(&[2, 1]));
+        assert_eq!(grid.get_index(&[2, 9]), grid.get_index(&[2, 4]));
+        assert_eq!(grid.get_index(&[2, 10]), grid.get_index(&[2, 0]));
+        assert_eq!(grid.get_index(&[2, -1]), grid.get_index(&[2, 4]));
+        assert_eq!(grid.get_index(&[2, -2]), grid.get_index(&[2, 3]));
+        assert_eq!(grid.get_index(&[2, -5]), grid.get_index(&[2, 0]));
+        assert_eq!(grid.get_index(&[2, -6]), grid.get_index(&[2, 4]));
     }
+
+    // #[test]
+    // fn indexing_outside_of_shape_yields_none() {
+    //     let shape = [3, 5, 7];
+    //     let grid = Grid::with_shape(&shape);
+
+    //     assert!(grid.get_index(&[0, 0, 7]).is_none());
+    //     assert!(grid.get_index(&[0, 5, 0]).is_none());
+    //     assert!(grid.get_index(&[3, 0, 0]).is_none());
+    // }
 
     #[test]
     fn position_to_index_is_consistent_with_index_to_position() {

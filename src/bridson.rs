@@ -34,6 +34,10 @@ pub fn bridson_rng<R: Rng>(
     num_attempts: usize,
     rng: &mut R,
 ) -> Result<Vec<Coord>, Error> {
+    // Validate input numbers as positive and bounded
+    validate_rmin(rmin)?;
+    validate_box_size(box_size)?;
+
     let shape = get_grid_shape(rmin, box_size);
     let mut grid = Grid::new(&shape, box_size).map_err(|_| Error::UnmatchedDims)?;
 
@@ -236,6 +240,35 @@ fn get_max_bin_size(rmin: f64, box_size: &[f64]) -> Vec<f64> {
     box_size.iter().map(|v| v / max_size).collect()
 }
 
+/*************************
+ * User input validation *
+ *************************/
+
+fn validate_number(value: f64) -> bool {
+    value > 0.0 && value.is_finite()
+}
+
+fn validate_rmin(rmin: f64) -> Result<(), Error> {
+    if validate_number(rmin) {
+        Ok(())
+    } else {
+        Err(Error::InvalidRmin(rmin))
+    }
+}
+
+fn validate_box_size(box_size: &[f64]) -> Result<(), Error> {
+    for &value in box_size {
+        if !validate_number(value) {
+            return Err(Error::InvalidBoxSize {
+                value,
+                box_size: box_size.to_vec(),
+            });
+        }
+    }
+
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -336,5 +369,99 @@ mod tests {
         samples[0] = vec![5.99, 3.99]; // bin: 2, 1
 
         assert!(check_if_coord_is_valid(&coord, &samples, &grid, rmin))
+    }
+
+    /*************************
+     * USER INPUT VALIDATION *
+     *************************/
+
+    #[test]
+    fn non_positive_rmin_yields_error() {
+        let box_size = [5.0, 5.0];
+        let num_attempts = 10;
+
+        assert!(bridson(&box_size, 1.0, 10).is_ok());
+
+        let rmin_zero = 0.0;
+        let rmin_neg = -1.0;
+        let rmin_nan = f64::NAN;
+        let rmin_inf = f64::INFINITY;
+        let rmin_neg_inf = f64::NEG_INFINITY;
+
+        assert!(bridson(&box_size, rmin_zero, num_attempts)
+            .unwrap_err()
+            .is_invalid_rmin());
+
+        assert!(bridson(&box_size, rmin_neg, num_attempts)
+            .unwrap_err()
+            .is_invalid_rmin());
+
+        assert!(bridson(&box_size, rmin_nan, num_attempts)
+            .unwrap_err()
+            .is_invalid_rmin());
+
+        assert!(bridson(&box_size, rmin_inf, num_attempts)
+            .unwrap_err()
+            .is_invalid_rmin());
+
+        assert!(bridson(&box_size, rmin_neg_inf, num_attempts)
+            .unwrap_err()
+            .is_invalid_rmin());
+    }
+
+    #[test]
+    fn non_positive_box_size_yields_error() {
+        let rmin = 1.0;
+        let num_attempts = 10;
+
+        assert!(bridson(&[5.0, 5.0], rmin, num_attempts).is_ok());
+
+        // Use invalid box size values at the front and back of the given
+        // array, to ensure that all are tested.
+        assert!(bridson(&[-5.0, 5.0], rmin, num_attempts)
+            .unwrap_err()
+            .is_invalid_box_size());
+
+        assert!(bridson(&[5.0, -5.0], rmin, num_attempts)
+            .unwrap_err()
+            .is_invalid_box_size());
+
+        assert!(bridson(&[-5.0, -5.0], rmin, num_attempts)
+            .unwrap_err()
+            .is_invalid_box_size());
+
+        assert!(bridson(&[f64::NAN, 5.0], rmin, num_attempts)
+            .unwrap_err()
+            .is_invalid_box_size());
+
+        assert!(bridson(&[5.0, f64::NAN], rmin, num_attempts)
+            .unwrap_err()
+            .is_invalid_box_size());
+
+        assert!(bridson(&[f64::INFINITY, 5.0], rmin, num_attempts)
+            .unwrap_err()
+            .is_invalid_box_size());
+
+        assert!(bridson(&[5.0, f64::INFINITY], rmin, num_attempts)
+            .unwrap_err()
+            .is_invalid_box_size());
+
+        assert!(bridson(&[5.0, f64::NEG_INFINITY], rmin, num_attempts)
+            .unwrap_err()
+            .is_invalid_box_size());
+
+        assert!(bridson(&[f64::NEG_INFINITY, 5.0], rmin, num_attempts)
+            .unwrap_err()
+            .is_invalid_box_size());
+    }
+
+    #[test]
+    fn non_positive_num_attempts_works() {
+        let box_size = [5.0, 5.0];
+        let rmin = 1.0;
+
+        assert!(bridson(&box_size, rmin, 0).is_ok());
+        assert!(bridson(&box_size, rmin, 1).is_ok());
+        assert!(bridson(&box_size, rmin, 10).is_ok());
     }
 }

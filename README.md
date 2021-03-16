@@ -68,6 +68,16 @@ show some weird behavior.
 In short, I would currently recommend against using this for work where the distribution 
 of points is critical. Or, at the very least, to inspect the results before use.
 
+# Should you use this?
+Probably not. The results are decent (but not great) and thousands of points are generated in milliseconds
+on reasonably modern hardware. However, in absolute speed testing the library is worse 
+by an order of magnitude compared to many other implementations in C and even Python. 
+
+This is likely due the inefficient grid search which is implemented recursively in order 
+to work with an arbitrary number of dimensions. This may or may not be improved.
+
+*   Ballpark speed: 60,000 generated points in 400 ms, running in release mode on an Intel 4670K at 3.4GHz.
+
 # Citations
 \[1\] Bridson, R. (2007). Fast Poisson disk sampling in arbitrary dimensions. SIGGRAPH sketches, 10, 1.
 

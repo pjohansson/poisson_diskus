@@ -13,8 +13,8 @@ keywords = ["sampling", "blue-noise"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-rand = "0.7"
-rand_distr = "0.3"
+rand = "0.8"
+rand_distr = "0.4"
 
 [dev-dependencies]
 criterion = { version = "0.3", features = ["html_reports"] }

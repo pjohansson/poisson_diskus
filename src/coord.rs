@@ -21,7 +21,7 @@ pub fn calc_distance<const D: usize>(x0: &Coord<D>, x1: &Coord<D>) -> f64 {
 }
 
 /// Return the distance between two coordinates, with periodic boundary conditions taken into account.
-pub fn calc_distance_pbc(x0: &[f64], x1: &[f64], pbc: &PbcInfo) -> f64 {
+pub fn calc_distance_pbc<const D: usize>(x0: &Coord<D>, x1: &Coord<D>, pbc: &PbcInfo<D>) -> f64 {
     x0.iter()
         .zip(x1.iter())
         .zip(pbc.box_size.iter().zip(pbc.inv_box_size.iter()))
@@ -77,7 +77,7 @@ mod tests {
         let dx = 2.0;
         let dy = 4.0;
         let box_size = [dx, dy];
-        let pbc = PbcInfo::new(&box_size);
+        let pbc = PbcInfo::new(box_size);
 
         let x0 = 1.0;
         let y0 = 2.0;

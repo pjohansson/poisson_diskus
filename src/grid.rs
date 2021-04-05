@@ -1,15 +1,16 @@
 #[derive(Clone, Debug, PartialEq)]
-pub struct PbcInfo {
-    pub box_size: Vec<f64>,
-    pub inv_box_size: Vec<f64>,
+pub struct PbcInfo<const D: usize> {
+    pub box_size: [f64; D],
+    pub inv_box_size: [f64; D],
 }
 
-impl PbcInfo {
-    pub fn new(box_size: &[f64]) -> Self {
-        let inv_box_size = box_size.iter().map(|v| 1.0 / v).collect();
+impl<const D: usize> PbcInfo<D> {
+    pub fn new(box_size: [f64; D]) -> Self {
+        let mut inv_box_size = box_size.clone();
+        inv_box_size.iter_mut().for_each(|v| *v = 1.0 / *v);
 
         PbcInfo {
-            box_size: box_size.to_vec(),
+            box_size,
             inv_box_size,
         }
     }
@@ -26,7 +27,7 @@ pub struct Grid<const D: usize> {
     /// Spacing of bins in grid.
     pub(crate) spacing: [f64; D],
     /// Information about the size of the grid, used to calculate PBC information.
-    pub(crate) pbc: PbcInfo,
+    pub(crate) pbc: PbcInfo<D>,
     /// Data of grid as a one-dimensional vector.
     pub data: Vec<Option<usize>>,
 }
@@ -44,7 +45,7 @@ impl<const D: usize> Grid<D> {
             num_adjacent: (D as f64).sqrt().ceil() as usize,
             shape: shape.clone(),
             spacing,
-            pbc: PbcInfo::new(box_size),
+            pbc: PbcInfo::new(box_size.clone()),
             data: vec![None; shape.iter().product()],
         }
     }
